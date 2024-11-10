@@ -109,20 +109,7 @@ class DataLoader:
         return exprs, pdata
 
     def prepare_survival_data(self, pdata):
-        """Convert pData to scikit-survival format
 
-        Parameters
-        ----------
-        pdata : pd.DataFrame
-            DataFrame with BCR_STATUS and MONTH_TO_BCR columns
-
-        Returns
-        -------
-        structured_array
-            Survival data in scikit-survival format with fields:
-            - 'status': boolean event indicator
-            - 'time': float time to event
-        """
         # Convert status to boolean
         status = pdata['BCR_STATUS'].astype(bool).values
 

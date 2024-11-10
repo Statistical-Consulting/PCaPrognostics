@@ -11,20 +11,7 @@ class DataContainer:
     """Container for data loading and preprocessing"""
 
     def __init__(self, data_config=None, project_root=None):
-        """
-        Parameters
-        ----------
-        data_config : dict, optional
-            Configuration with options:
-            - use_pca : bool
-            - pca_threshold : float
-            - gene_type : str
-            - use_imputed : bool
-            - validation_split : float
-            - use_cohorts : bool
-        project_root : str, optional
-            Path to project root directory
-        """
+
         # Default configuration
         self.config = {
             'use_pca': False,

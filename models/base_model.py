@@ -16,7 +16,7 @@ class BaseSurvivalModel(BaseEstimator):
     """Base class for all survival models.
 
     Provides common functionality for both pipeline-based models (like RSF)
-    and directly trained models (like DeepSurv).
+    and directly trained models (like DeepSurv)
     """
 
     def __init__(self):
@@ -26,19 +26,7 @@ class BaseSurvivalModel(BaseEstimator):
         self.data_container = None
 
     def fit(self, X, y, data_container=None, **kwargs):
-        """Main fit method that handles data preprocessing and model training.
 
-        Parameters
-        ----------
-        X : array-like
-            Features matrix
-        y : structured array
-            Survival data with 'time' and 'status'/'event' fields
-        data_container : DataContainer, optional
-            Container with preprocessing functionality
-        **kwargs : dict
-            Additional model-specific parameters
-        """
         try:
             logger.info("Starting model training...")
             logger.info(f"Input data shape: X={X.shape}")
@@ -71,18 +59,7 @@ class BaseSurvivalModel(BaseEstimator):
                       use_cohort_cv=True, n_splits_inner=5, refit=True):
         """Pipeline-based training implementation (RSF).
 
-        Parameters
-        ----------
-        pipeline_steps : list
-            List of (name, transformer) tuples
-        params_cv : dict
-            Parameters for grid search
-        use_cohort_cv : bool
-            Whether to use cohort-based CV
-        n_splits_inner : int
-            Number of inner CV splits
-        refit : bool
-            Whether to refit on full data
+
         """
         if pipeline_steps is None:
             raise ValueError("pipeline_steps required for pipeline-based models")
@@ -121,7 +98,6 @@ class BaseSurvivalModel(BaseEstimator):
     def _fit_direct(self, X, y, validation_data=None, **kwargs):
         """Direct training implementation (DeepSurv).
 
-        To be implemented by child classes.
         """
         raise NotImplementedError
 
@@ -134,12 +110,7 @@ class BaseSurvivalModel(BaseEstimator):
     def save(self, path, fname):
         """Save model and results.
 
-        Parameters
-        ----------
-        path : str
-            Directory to save to
-        fname : str
-            Base filename
+
         """
         if not self.is_fitted:
             raise ValueError("Model must be fitted before saving")
@@ -168,7 +139,6 @@ class BaseSurvivalModel(BaseEstimator):
     def _save_model(self, path, fname):
         """Model-specific save implementation.
 
-        To be implemented by child classes.
         """
         raise NotImplementedError
 
