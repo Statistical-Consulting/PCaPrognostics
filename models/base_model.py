@@ -26,7 +26,7 @@ class BaseSurvivalModel(BaseEstimator):
         self.data_container = None
 
     def fit(self, X, y, data_container=None, **kwargs):
-
+        """Main fit method that handles both pipeline and direct training approaches"""
         try:
             logger.info("Starting model training...")
             logger.info(f"Input data shape: X={X.shape}")
@@ -38,11 +38,9 @@ class BaseSurvivalModel(BaseEstimator):
             groups = self.data_container.get_groups() if data_container else None
 
             # Train model based on type
-            if hasattr(self, 'use_pipeline') and self.use_pipeline:
-                # Pipeline based models (RSF)
+            if self._uses_pipeline():
                 self._fit_pipeline(X, y, groups=groups, **kwargs)
             else:
-                # Direct models (DeepSurv)
                 X_train, y_train, X_val, y_val = self.data_container.get_train_val_split(X, y)
                 validation_data = (X_val, y_val) if X_val is not None else None
                 self._fit_direct(X_train, y_train, validation_data=validation_data, **kwargs)
@@ -55,19 +53,23 @@ class BaseSurvivalModel(BaseEstimator):
             logger.error(f"Error during model training: {str(e)}")
             raise
 
-    def _fit_pipeline(self, X, y, groups=None, pipeline_steps=None, params_cv=None,
-                      use_cohort_cv=True, n_splits_inner=5, refit=True):
-        """Pipeline-based training implementation (RSF).
+    def _uses_pipeline(self):
+        """Determine if model uses sklearn pipeline"""
+        return hasattr(self, 'pipeline_steps')
 
-
-        """
-        if pipeline_steps is None:
-            raise ValueError("pipeline_steps required for pipeline-based models")
+    def _fit_pipeline(self, X, y, groups=None, params_cv=None, use_cohort_cv=True,
+                      n_splits_inner=5, refit=True):
+        """Pipeline-based training implementation"""
+        if not hasattr(self, 'pipeline_steps'):
+            raise ValueError("pipeline_steps must be defined for pipeline-based models")
 
         # Create pipeline
-        pipe = Pipeline(pipeline_steps)
+        self.model = Pipeline(self.pipeline_steps)
 
         if params_cv:
+            # Add pipeline component prefixes to parameters if needed
+            prefixed_params = self._prefix_pipeline_params(params_cv)
+
             # Nested CV with parameter search
             cv = NestedResamplingCV(
                 n_splits_inner=n_splits_inner,
@@ -76,42 +78,57 @@ class BaseSurvivalModel(BaseEstimator):
             )
 
             self.cv_results_ = cv.fit(
-                estimator=pipe,
+                estimator=self.model,
                 X=X,
                 y=y,
                 groups=groups,
-                param_grid=params_cv,
+                param_grid=prefixed_params,
                 scoring=cindex_score
             )
 
             if refit:
                 # Refit on full data with best parameters
                 best_params = self.cv_results_['best_params']
-                pipe.set_params(**best_params)
-                pipe.fit(X, y)
+                self.model.set_params(**best_params)
+                self.model.fit(X, y)
         else:
             # Simple fit without CV
-            pipe.fit(X, y)
+            self.model.fit(X, y)
 
-        self.model = pipe
+    def _prefix_pipeline_params(self, params):
+        """Add pipeline component prefixes to parameters if not already present"""
+        prefixed_params = {}
+        for param, value in params.items():
+            if '__' not in param:
+                # Find the relevant step in pipeline_steps
+                step_found = False
+                for step_name, _ in self.pipeline_steps:
+                    try:
+                        # Try setting the parameter to check if it belongs to this step
+                        self.model.named_steps[step_name].get_params()[param]
+                        prefixed_params[f"{step_name}__{param}"] = value
+                        step_found = True
+                        break
+                    except KeyError:
+                        continue
+                if not step_found:
+                    raise ValueError(f"Could not determine pipeline step for parameter: {param}")
+            else:
+                prefixed_params[param] = value
+        return prefixed_params
 
     def _fit_direct(self, X, y, validation_data=None, **kwargs):
-        """Direct training implementation (DeepSurv).
-
-        """
+        """Direct training implementation for non-pipeline models"""
         raise NotImplementedError
 
     def predict(self, X):
-        """Make predictions for new data."""
+        """Make predictions for new data"""
         if not self.is_fitted:
             raise ValueError("Model must be fitted before predicting")
         return self.model.predict(X)
 
     def save(self, path, fname):
-        """Save model and results.
-
-
-        """
+        """Save model and results"""
         if not self.is_fitted:
             raise ValueError("Model must be fitted before saving")
 
@@ -122,38 +139,20 @@ class BaseSurvivalModel(BaseEstimator):
         os.makedirs(results_dir, exist_ok=True)
 
         # Save model
-        if hasattr(self, 'use_pipeline') and self.use_pipeline:
-            # RSF: Save pipeline
+        if self._uses_pipeline():
+            # Save pipeline
             with open(os.path.join(model_dir, f"{fname}.pkl"), 'wb') as f:
                 pickle.dump(self.model, f)
         else:
-            # DeepSurv: Model specific save
+            # Model specific save
             self._save_model(model_dir, fname)
 
         # Save CV results if available
-        if hasattr(self, 'cv_results_'):
+        if self.cv_results_ is not None:
             results_file = os.path.join(results_dir, f"{fname}_cv_results.csv")
             pd.DataFrame(self.cv_results_).to_csv(results_file)
             logger.info(f"Saved CV results to {results_file}")
 
     def _save_model(self, path, fname):
-        """Model-specific save implementation.
-
-        """
+        """Model-specific save implementation"""
         raise NotImplementedError
-
-    def get_params(self, deep=True):
-        """Get parameters for CV"""
-        return {
-            'use_nested_cv': self.use_nested_cv
-        }
-
-    def set_params(self, **parameters):
-        """Set parameters for CV"""
-        for parameter, value in parameters.items():
-            if parameter == 'use_nested_cv':
-                setattr(self, parameter, value)
-            else:
-                # Training parameters
-                setattr(self, parameter, value)
-        return self

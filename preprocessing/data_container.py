@@ -90,9 +90,10 @@ class DataContainer:
 
                 logger.info(f"Using random {self.config['validation_split'] * 100}% validation split")
 
-            X_train = X[train_mask]
+            # Use iloc for integer-based indexing
+            X_train = X.iloc[train_mask]
             y_train = y[train_mask]
-            X_val = X[val_mask]
+            X_val = X.iloc[val_mask]
             y_val = y[val_mask]
 
             logger.info(f"Training samples: {len(X_train)}, Validation samples: {len(X_val)}")

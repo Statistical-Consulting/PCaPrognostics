@@ -8,5 +8,6 @@ __all__ = [
     'plot_survival_curves',
     'plot_cv_results',
     'plot_feature_importance',
-    'NestedResamplingCV'
+    'NestedResamplingCV',
+    'DeepSurvNestedCV',
 ]

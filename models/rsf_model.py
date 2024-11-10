@@ -1,4 +1,3 @@
-
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
@@ -14,12 +13,11 @@ class RSFModel(BaseSurvivalModel):
     """Random Survival Forest Implementation"""
 
     def __init__(self):
+        """Initialize RSF with default pipeline"""
         super().__init__()
-        self.use_pipeline = True
 
-    def _get_default_pipeline(self):
-        """Create default pipeline with standard scaler and RSF"""
-        return [
+        # Define default pipeline steps
+        self.pipeline_steps = [
             ('scaler', StandardScaler()),
             ('rsf', RandomSurvivalForest(
                 n_estimators=100,
@@ -30,10 +28,24 @@ class RSFModel(BaseSurvivalModel):
             ))
         ]
 
-    def fit(self, X, y, data_container=None, pipeline_steps=None,
-            params_cv=None, use_cohort_cv=True, n_splits_inner=5, **kwargs):
+    def set_params(self, **params):
+        """Set parameters for the RSF model
+
+        This method allows setting parameters for the RSF estimator directly
+        without needing to use the 'rsf__' prefix
         """
-        Fit Random Survival Forest with optional CV
+        if hasattr(self, 'model') and self.model is not None:
+            self.model.named_steps['rsf'].set_params(**params)
+        else:
+            # If model isn't fitted yet, update the pipeline_steps
+            rsf_params = self.pipeline_steps[1][1].get_params()
+            rsf_params.update(params)
+            self.pipeline_steps[1] = ('rsf', RandomSurvivalForest(**rsf_params))
+        return self
+
+    def fit(self, X, y, data_container=None, params_cv=None,
+            use_cohort_cv=True, n_splits_inner=5, **kwargs):
+        """Fit Random Survival Forest with optional CV
 
         Parameters
         ----------
@@ -43,15 +55,14 @@ class RSFModel(BaseSurvivalModel):
             Survival data
         data_container : DataContainer, optional
             Container with preprocessing functionality
-        pipeline_steps : list, optional
-            List of (name, transformer) tuples. If None, uses default pipeline
         params_cv : dict, optional
             Parameters for grid search, e.g.:
             {
-                'rsf__n_estimators': [100, 200],
-                'rsf__min_samples_split': [5, 10],
-                'rsf__min_samples_leaf': [3, 5]
+                'n_estimators': [100, 200],
+                'min_samples_split': [5, 10],
+                'min_samples_leaf': [3, 5]
             }
+            Note: No need to prefix with 'rsf__', this is handled automatically
         use_cohort_cv : bool, default=True
             Whether to use cohort-based CV
         n_splits_inner : int, default=5
@@ -59,16 +70,13 @@ class RSFModel(BaseSurvivalModel):
         **kwargs : dict
             Additional parameters passed to base fit method
         """
-        # Use default pipeline if none provided
-        if pipeline_steps is None:
-            pipeline_steps = self._get_default_pipeline()
+        logger.info("Starting RSF training...")
+        logger.info(f"Parameter grid: {params_cv}")
 
-        # Call parent fit method
         return super().fit(
             X=X,
             y=y,
             data_container=data_container,
-            pipeline_steps=pipeline_steps,
             params_cv=params_cv,
             use_cohort_cv=use_cohort_cv,
             n_splits_inner=n_splits_inner,
@@ -81,7 +89,7 @@ class RSFModel(BaseSurvivalModel):
         Parameters
         ----------
         feature_names : list, optional
-            Names of features. If None, uses X0, X1, etc.
+            Names of features. If None, uses feature indices
 
         Returns
         -------
@@ -103,3 +111,21 @@ class RSFModel(BaseSurvivalModel):
             'importance': importances
         })
         return importance_df.sort_values('importance', ascending=False)
+
+    def predict_survival_function(self, X):
+        """Predict survival function for samples in X
+
+        Parameters
+        ----------
+        X : array-like
+            Features to predict for
+
+        Returns
+        -------
+        numpy.ndarray
+            Predicted survival functions
+        """
+        if not self.is_fitted:
+            raise ValueError("Model must be fitted before predicting")
+
+        return self.model.named_steps['rsf'].predict_survival_function(X)
