@@ -9,6 +9,7 @@ from sklearn.base import clone
 from itertools import product
 import logging
 import torch
+from utils.evaluation import cindex_score
 
 
 logger = logging.getLogger(__name__)
@@ -207,7 +208,7 @@ class DeepSurvNestedCV:
         model.set_params(**params)
 
         n_epochs = params.get('num_epochs', 100)
-        batch_size = params.get('batch_size', 32)
+        batch_size = max(params.get('batch_size', 32), 4)  # Mindestens Batch-Size 4
         patience = params.get('patience', 10)
 
         best_val_loss = float('inf')
@@ -216,6 +217,11 @@ class DeepSurvNestedCV:
 
         n_samples = len(X_train)
         n_batches = (n_samples - 1) // batch_size + 1
+
+        # Wenn zu wenig Samples, kompletten Datensatz als Batch verwenden
+        if n_samples < 4:
+            batch_size = n_samples
+            n_batches = 1
 
         for epoch in range(n_epochs):
             # Training
@@ -230,6 +236,9 @@ class DeepSurvNestedCV:
                 end_idx = min((i + 1) * batch_size, n_samples)
                 batch_indices = indices[start_idx:end_idx]
 
+                if len(batch_indices) < 2:  # Skip zu kleine Batches
+                    continue
+
                 X_batch, time_batch, event_batch = self._prepare_data_batch(
                     X_train, y_train, batch_indices
                 )
@@ -237,7 +246,7 @@ class DeepSurvNestedCV:
                 loss = model._train_step(X_batch, time_batch, event_batch)
                 total_loss += loss
 
-            # Validation
+            # Validation - hier kompletten Validierungsdatensatz verwenden
             model.network.eval()
             with torch.no_grad():
                 X_val_tensor, time_val_tensor, event_val_tensor = self._prepare_data_batch(
@@ -262,6 +271,7 @@ class DeepSurvNestedCV:
 
         # Load best weights
         model.network.load_state_dict(best_weights)
+        model.is_fitted = True
 
         # Calculate validation score (c-index)
         val_pred = model.predict(X_val)

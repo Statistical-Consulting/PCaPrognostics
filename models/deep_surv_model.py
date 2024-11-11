@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class DeepSurvNet(nn.Module):
     """Neural network architecture for DeepSurv"""
 
-    def __init__(self, n_features, hidden_layers=[32, 16]):
+    def __init__(self, n_features, hidden_layers=[32, 16], dropout=0.2):
         super().__init__()
 
         layers = []
@@ -28,8 +28,8 @@ class DeepSurvNet(nn.Module):
             layers.extend([
                 nn.Linear(prev_size, size),
                 nn.ReLU(),
-                nn.BatchNorm1d(size),
-                nn.Dropout(0.2)
+                # BatchNorm1d nur bei größeren Batches verwenden
+                nn.Dropout(dropout)
             ])
             prev_size = size
 
@@ -262,11 +262,11 @@ class DeepSurvModel(BaseSurvivalModel):
 
     def predict(self, X):
         """Predict risk scores for samples in X"""
-        if not self.is_fitted:
+        if not self.is_fitted or self.network is None:
             raise ValueError("Model must be fitted before predicting")
 
-        # Scale features
-        X_scaled = self.scaler.transform(X)
+        # Handle scaling
+        X_scaled = self.scaler.transform(X) if hasattr(self.scaler, 'mean_') else self.scaler.fit_transform(X)
         X_tensor = torch.FloatTensor(X_scaled).to(self.device)
 
         self.network.eval()
