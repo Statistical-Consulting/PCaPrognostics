@@ -2,13 +2,16 @@
 Resampling Module für Cross-Validation und Hyperparameter Tuning.
 """
 
+"""
+Resampling Module für Cross-Validation und Hyperparameter Tuning.
+"""
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import LeaveOneGroupOut, KFold, GridSearchCV, RandomizedSearchCV
 from sklearn.base import clone
 from itertools import product
 import logging
-import torch
 from utils.evaluation import cindex_score
 
 
@@ -39,7 +42,7 @@ def _aggregate_results(results):
         'fold_results': results
     }
 
-def nested_resampling(estimator, X, y, groups, param_grid, outer_cv = LeaveOneGroupOut(), inner_cv = LeaveOneGroupOut(), scoring = None):
+def nested_resampling(estimator, X, y, groups, param_grid, ss = GridSearchCV, outer_cv = LeaveOneGroupOut(), inner_cv = LeaveOneGroupOut(), scoring = None):
     logger.info("Starting nested resampling...")
     logger.info(f"Data shape: X={X.shape}, groups={len(np.unique(groups))} unique")
 
@@ -50,37 +53,14 @@ def nested_resampling(estimator, X, y, groups, param_grid, outer_cv = LeaveOneGr
 
         X_train = X.iloc[train_idx]
         X_test = X.iloc[test_idx]
-        y_train = self._get_survival_subset(y, train_idx)
-        y_test = self._get_survival_subset(y, test_idx)
+        y_train = _get_survival_subset(y, train_idx)
+        y_test = _get_survival_subset(y, test_idx)
         train_groups = groups[train_idx] if groups is not None else None
 
         test_cohort = groups[test_idx][0] if groups is not None else None
         logger.info(f"Test cohort: {test_cohort}")
-
-        # inner_cv = LeaveOneGroupOut() if self.use_cohort_cv else KFold(
-        #     n_splits=self.n_splits_inner,
-        #     shuffle=True,
-        #     random_state=self.random_state
-        # )
-
-        # inner_cv_results = self._inner_grid_search(
-        #     estimator=estimator,
-        #     X=X_train,
-        #     y=y_train,
-        #     groups=train_groups,
-        #     param_grid=param_grid,
-        #     inner_cv=inner_cv,
-        #     scoring=scoring
-        # )
-
-        # test_score = self._evaluate_best_model(
-        #     best_model=inner_cv_results['best_model'],
-        #     X_test=X_test,
-        #     y_test=y_test,
-        #     scoring=scoring
-        # )
         
-        inner_gcv = GridSearchCV(estimator, cv = inner_cv, param_grid = param_grid, refit = True, n_jobs=-1, verbose = 2)
+        inner_gcv = ss(estimator, cv = inner_cv, param_grid = param_grid, refit = True, n_jobs=-1, verbose = 2)
         inner_results = inner_gcv.fit(X_train, y_train, groups = train_groups)
         
         inner_cv_results = inner_results.cv_results_
@@ -89,17 +69,17 @@ def nested_resampling(estimator, X, y, groups, param_grid, outer_cv = LeaveOneGr
         outer_model = inner_results.best_estimator_.named_steps['model']
         test_score = outer_model.score(X_test, y_test)
 
-        logger.info(f"Best parameters: {inner_cv_results['best_params']}")
+        logger.info(f"Best parameters: {inner_best_params}")
         logger.info(f"Test score: {test_score:.3f}")
 
         outer_results.append({
             'test_cohort': test_cohort,
             'test_score': test_score,
-            'best_params': inner_cv_results['best_params'],
-            'inner_cv_results': inner_cv_results['cv_results']
+            'best_params': inner_best_params,
+            'inner_cv_results': inner_cv_results
         })
 
-    return self._aggregate_results(outer_results)
+    return _aggregate_results(outer_results)
  
 
 # class NestedResamplingCV:
