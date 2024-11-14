@@ -2,10 +2,6 @@
 Resampling Module für Cross-Validation und Hyperparameter Tuning.
 """
 
-"""
-Resampling Module für Cross-Validation und Hyperparameter Tuning.
-"""
-
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import LeaveOneGroupOut, KFold, GridSearchCV, RandomizedSearchCV
@@ -60,7 +56,7 @@ def nested_resampling(estimator, X, y, groups, param_grid, ss = GridSearchCV, ou
         test_cohort = groups[test_idx][0] if groups is not None else None
         logger.info(f"Test cohort: {test_cohort}")
         
-        inner_gcv = ss(estimator, cv = inner_cv, param_grid = param_grid, refit = True, n_jobs=-1, verbose = 2)
+        inner_gcv = ss(estimator, param_grid, cv = inner_cv, refit = True, n_jobs=-1, verbose = 2)
         inner_results = inner_gcv.fit(X_train, y_train, groups = train_groups)
         
         inner_cv_results = inner_results.cv_results_
