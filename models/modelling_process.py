@@ -131,3 +131,26 @@ class ModellingProcess():
     def set_params(self, params):
         for key, value in params.items():
             setattr(self, key, value) 
+            
+            
+    def _prefix_pipeline_params(self, params):
+        """Add pipeline component prefixes to parameters if not already present"""
+        prefixed_params = {}
+        for param, value in params.items():
+            if '__' not in param:
+                # Find the relevant step in pipeline_steps
+                step_found = False
+                for step_name, _ in self.pipeline_steps:
+                    try:
+                        # Try setting the parameter to check if it belongs to this step
+                        self.model.named_steps[step_name].get_params()[param]
+                        prefixed_params[f"{step_name}__{param}"] = value
+                        step_found = True
+                        break
+                    except KeyError:
+                        continue
+                if not step_found:
+                    raise ValueError(f"Could not determine pipeline step for parameter: {param}")
+            else:
+                prefixed_params[param] = value
+        return prefixed_params
