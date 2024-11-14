@@ -37,14 +37,18 @@ class ModellingProcess():
         if config.get("params_mp", None) is not None: 
             self.set_params(config['params_mp'])
         
-        err, mes = self.check_modelling_prerequs(pipeline_steps)
+        err, mes = self._check_modelling_prerequs(pipeline_steps)
         if err: 
            logger.error("Requirements setup error: %s", mes)
            raise Exception(mes)
         else: 
             self.pipe = Pipeline(pipeline_steps) 
         
-        param_grid, do_nested_resampling, refit_hp_tuning = self.get_config_vals(config)
+        param_grid, do_nested_resampling, refit_hp_tuning = self._get_config_vals(config)
+        
+        # TODO: do this
+        #param_grid = self._prefix_pipeline_params(param_grid, pipeline_steps)
+        #print(param_grid)
 
         try:
             logger.info("Start model training...")
@@ -107,11 +111,9 @@ class ModellingProcess():
     
     def load_model(self): 
         pass
+
     
-    def check_pipline_steps(self, pipeline_steps):
-        return any('model' in tup for tup in pipeline_steps)
-    
-    def check_modelling_prerequs(self, pipeline_steps): 
+    def _check_modelling_prerequs(self, pipeline_steps): 
         err = False
         mes = ""
         if self.X is None or self.y is None: 
@@ -122,7 +124,7 @@ class ModellingProcess():
             err = True
         return err, mes
 
-    def get_config_vals(self, config): 
+    def _get_config_vals(self, config): 
         if config.get("params_cv", None) is None: 
             logger.warning("No param grid for (nested) resampling detected - will fit model with default HPs and on complete data")
             return None, False, False
@@ -133,14 +135,14 @@ class ModellingProcess():
             setattr(self, key, value) 
             
             
-    def _prefix_pipeline_params(self, params):
+    def _prefix_pipeline_params(self, params, pipeline_steps):
         """Add pipeline component prefixes to parameters if not already present"""
         prefixed_params = {}
         for param, value in params.items():
             if '__' not in param:
                 # Find the relevant step in pipeline_steps
                 step_found = False
-                for step_name, _ in self.pipeline_steps:
+                for step_name, _ in pipeline_steps:
                     try:
                         # Try setting the parameter to check if it belongs to this step
                         self.model.named_steps[step_name].get_params()[param]
