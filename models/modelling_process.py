@@ -23,6 +23,9 @@ class ModellingProcess():
         self.pipe = None
         self.cmplt_model = None
         self.nrs = None
+        self.X = None
+        self.y = None
+        self.groups = None
         pass
             
     def prepare_data(self, data_config, root): 
@@ -30,14 +33,18 @@ class ModellingProcess():
         self.X, self.y = self.dc.load_data()
         self.groups = self.dc.get_groups()
     
-    # def do_modelling(self, pipeline_steps, config)
-    def do_modelling(self, pipeline_steps, param_grid, do_nested_resampling = False, refit = True): 
-        if self.X is None or self.y is None: 
-            raise Exception("Please call prepare_data() with your preferred config or set X, y, and groups as attributes of your modelling process instance")
-        if self.check_pipline_steps:
-            self.pipe = Pipeline(pipeline_steps) 
+    def do_modelling(self, pipeline_steps, config): 
+        if config.get("params_mp", None) is not None: 
+            self.set_params(config['params_mp'])
+        
+        err, mes = self.check_modelling_prerequs(pipeline_steps)
+        if err: 
+           logger.error("Requirements setup error: %s", mes)
+           raise Exception(mes)
         else: 
-            raise Exception("Caution! Your pipline must include a named step for the model of the form ('model', <Instantiated Model Object>)")
+            self.pipe = Pipeline(pipeline_steps) 
+        
+        param_grid, do_nested_resampling, refit_hp_tuning = self.get_config_vals(config)
 
         try:
             logger.info("Start model training...")
@@ -50,13 +57,17 @@ class ModellingProcess():
             logger.error(f"Error during nested resampling: {str(e)}")
             raise
         
-        if refit: 
+        if refit_hp_tuning: 
             try:
                 logger.info("Do HP Tuning for complete model; refit + set complete model")
                 self.cmplt_model = self.fit_cmplt_model(param_grid)   
             except Exception as e:
-                logger.error(f"Error during final model training: {str(e)}")
-                raise
+                logger.error(f"Error during complete model training: {str(e)}")
+                raise    
+        elif refit_hp_tuning is False and do_nested_resampling is False: 
+            logger.info("Fit complete model wo. HP tuning (on default params)")
+            self.cmplt_model = self.pipe.fit(self.X, self.y)
+        
         return self.nrs
     
     
@@ -100,4 +111,23 @@ class ModellingProcess():
     def check_pipline_steps(self, pipeline_steps):
         return any('model' in tup for tup in pipeline_steps)
     
+    def check_modelling_prerequs(self, pipeline_steps): 
+        err = False
+        mes = ""
+        if self.X is None or self.y is None: 
+            mes = mes + "1) Please call prepare_data() with your preferred config or set X, y, and groups as attributes of your modelling process instance"
+            err = True
+        if not any('model' in tup for tup in pipeline_steps): 
+            mes = mes + "2) Caution! Your pipline must include a named step for the model of the form ('model', <Instantiated Model Object>)"
+            err = True
+        return err, mes
+
+    def get_config_vals(self, config): 
+        if config.get("params_cv", None) is None: 
+            logger.warning("No param grid for (nested) resampling detected - will fit model with default HPs and on complete data")
+            return None, False, False
+        return config['params_cv'], config.get('do_nested_resampling', True) , config.get('refit', True)
     
+    def set_params(self, params):
+        for key, value in params.items():
+            setattr(self, key, value) 
