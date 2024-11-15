@@ -186,6 +186,7 @@ class ModellingProcess():
         global random_state
         random_state = check_random_state(seed)
         
+        
     def predict_and_plot_survival_function(self, X, estimator):  
         if estimator is None: 
             estimator = self.cmplt_pipeline
