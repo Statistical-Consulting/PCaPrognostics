@@ -5,9 +5,11 @@ import logging
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import LeaveOneGroupOut
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+from sklearn.utils import check_random_state
 from utils.resampling import nested_resampling
 from preprocessing.data_container import DataContainer
 import pickle
+import torch
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,6 +36,8 @@ class ModellingProcess():
         self.groups = self.dc.get_groups()
     
     def do_modelling(self, pipeline_steps, config): 
+        self._set_seed()
+        
         if config.get("params_mp", None) is not None: 
             self.set_params(config['params_mp'])
         
@@ -156,3 +160,18 @@ class ModellingProcess():
             else:
                 prefixed_params[param] = value
         return prefixed_params
+    
+    def _set_seed(self, seed = 1234):
+        np.random.seed(seed)
+
+        # PyTorch
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(seed)
+            torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+        # Scikit-learn (and sksurv)
+        global random_state
+        random_state = check_random_state(seed)
