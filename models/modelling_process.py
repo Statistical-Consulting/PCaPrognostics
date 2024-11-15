@@ -10,6 +10,7 @@ from utils.resampling import nested_resampling
 from preprocessing.data_container import DataContainer
 import pickle
 import torch
+import matplotlib.pyplot as plt
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,6 +25,7 @@ class ModellingProcess():
         self.ss = GridSearchCV
         self.pipe = None
         self.cmplt_model = None
+        self.cmplt_pipeline = None
         self.nrs = None
         self.X = None
         self.y = None
@@ -68,7 +70,7 @@ class ModellingProcess():
         if refit_hp_tuning: 
             try:
                 logger.info("Do HP Tuning for complete model; refit + set complete model")
-                self.cmplt_model = self.fit_cmplt_model(param_grid)   
+                self.fit_cmplt_model(param_grid)   
             except Exception as e:
                 logger.error(f"Error during complete model training: {str(e)}")
                 raise    
@@ -76,35 +78,43 @@ class ModellingProcess():
             logger.info("Fit complete model wo. HP tuning (on default params)")
             self.cmplt_model = self.pipe.fit(self.X, self.y)
         
-        return self.nrs
+        return self.nrs, self.cmplt_model, self.cmplt_pipeline
     
     
     def fit_cmplt_model(self, param_grid): 
         logger.info("Do HP Tuning for complete model")
         res = self.ss(estimator=self.pipe, param_grid=param_grid, cv=self.outer_cv, n_jobs=-1, verbose = 2, refit = True)
         res.fit(self.X, self.y, groups = self.groups)
-        return res.best_estimator_.named_steps['model']  
+        self.cmplt_model = res.best_estimator_.named_steps['model']  
+        self.cmplt_pipeline = res.best_estimator_
     
     
-    def save_results(self, path, fname, model = None, cv_results = None,): 
+    def save_results(self, path, fname, model = None, cv_results = None, pipe = None): 
         """Save model and results"""
         if model is None: 
-            raise Warning("Won't save any model, since its not provided")   
+            logger.warning("Won't save any model, since its not provided")   
         else:  
         # Create directories
             model_dir = os.path.join(path, 'model')
             os.makedirs(model_dir, exist_ok=True)
             with open(os.path.join(model_dir, f"{fname}.pkl"), 'wb') as f:
-                pickle.dump(self.model, f)
+                pickle.dump(model, f)
         
         if cv_results is None: 
-            raise Warning("Won't save any cv results, since its not provided")
+            logger.warning("Won't save any cv results, since its not provided")
         else: 
             results_dir = os.path.join(path, 'results')
             os.makedirs(results_dir, exist_ok=True)
             results_file = os.path.join(results_dir, f"{fname}_cv_results.csv")
-            pd.DataFrame(self.cv_results).to_csv(results_file)
+            pd.DataFrame(cv_results).to_csv(results_file)
             logger.info(f"Saved CV results to {results_file}")
+            
+        if pipe is None: 
+            logger.warning("Won't save any pipe, since its not provided")
+            pipe_dir = os.path.join(path, 'pipe')
+            os.makedirs(pipe_dir, exist_ok=True)
+            with open(os.path.join(pipe_dir, f"{fname}.pkl"), 'wb') as f:
+                pickle.dump(pipe, f)
 
 
     def save_pipe(self): 
@@ -175,3 +185,17 @@ class ModellingProcess():
         # Scikit-learn (and sksurv)
         global random_state
         random_state = check_random_state(seed)
+        
+    def predict_and_plot_survival_function(self, X, estimator):  
+        if estimator is None: 
+            estimator = self.cmplt_pipeline
+        if X is None: 
+            X = self.X.head(5)
+        
+        pred_surv = estimator.predict_survival_function(X)
+        time_points = np.arange(1, 1000)
+        for i, surv_func in enumerate(pred_surv):
+            plt.step(time_points, surv_func(time_points), where="post", label=f"Sample {i + 1}")
+            plt.ylabel(r"est. probability of survival $\hat{S}(t)$")
+            plt.xlabel("time $t$")
+            plt.legend(loc="best")
