@@ -5,6 +5,7 @@ import numpy as np
 
 
 def plot_survival_curves(model, X_test, y_test, groups=None, n_curves=5):
+    np.random.seed(2134)
     """Plot predicted survival curves for selected samples"""
     if hasattr(model, 'predict_survival_function'):
         plt.figure(figsize=(10, 6))
