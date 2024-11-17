@@ -7,10 +7,12 @@ from sklearn.model_selection import LeaveOneGroupOut
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.utils import check_random_state
 from utils.resampling import nested_resampling
+from utils.visualization import plot_survival_curves, plot_cv_results, plot_feature_importance
 from preprocessing.data_container import DataContainer
 import pickle
 import torch
 import matplotlib.pyplot as plt
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -187,16 +189,13 @@ class ModellingProcess():
         random_state = check_random_state(seed)
         
         
-    def predict_and_plot_survival_function(self, X, estimator):  
+    def predict_and_plot_survival_function(self, X = None, y = None, estimator = None, n_curves = 5, groups = None):  
         if estimator is None: 
             estimator = self.cmplt_pipeline
         if X is None: 
-            X = self.X.head(5)
+            X = self.X
+        if y is None: 
+            y = self.y
         
-        pred_surv = estimator.predict_survival_function(X)
-        time_points = np.arange(1, 1000)
-        for i, surv_func in enumerate(pred_surv):
-            plt.step(time_points, surv_func(time_points), where="post", label=f"Sample {i + 1}")
-            plt.ylabel(r"est. probability of survival $\hat{S}(t)$")
-            plt.xlabel("time $t$")
-            plt.legend(loc="best")
+        plot_survival_curves(estimator, X, y, groups=groups, n_curves=n_curves)
+        
