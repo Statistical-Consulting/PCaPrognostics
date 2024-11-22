@@ -1,11 +1,10 @@
-import numpy as np
-import pandas as pd
 from sklearn.base import BaseEstimator
-from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 from sksurv.svm import FastSurvivalSVM
 from sksurv.metrics import concordance_index_censored
 from sksurv.util import Surv
+import numpy as np
 
 
 def prepare_survival_data(pdata, exprs):
@@ -31,11 +30,13 @@ class SurvivalSVMWrapper(BaseEstimator):
         self.model = None
 
     def fit(self, X, y):
+        # Create FastSurvivalSVM with minimum parameters
         self.model = FastSurvivalSVM(
             alpha=self.alpha,
             max_iter=self.max_iter,
             rank_ratio=self.rank_ratio,
-            random_state=42
+            random_state=42,
+            optimizer='avltree'
         )
         self.model.fit(X, y)
         return self
@@ -57,7 +58,7 @@ class SurvivalSVMWrapper(BaseEstimator):
         return {
             'alpha': self.alpha,
             'max_iter': self.max_iter,
-            'rank_ratio': self.rank_ratio,
+            'rank_ratio': self.rank_ratio
         }
 
     def set_params(self, **parameters):
@@ -69,6 +70,15 @@ class SurvivalSVMWrapper(BaseEstimator):
 def train_survival_svm(X, y, param_grid, groups=None):
     """Train SurvivalSVM with nested cross-validation"""
     from utils.resampling import nested_resampling
+
+    # Create a clean parameter grid with only supported parameters
+    clean_param_grid = {}
+    supported_params = {'alpha', 'max_iter', 'rank_ratio'}
+
+    for param, values in param_grid.items():
+        param_name = param.replace('model__', '')
+        if param_name in supported_params:
+            clean_param_grid[param] = values
 
     # Create pipeline
     pipe = Pipeline([
@@ -82,11 +92,13 @@ def train_survival_svm(X, y, param_grid, groups=None):
         X=X,
         y=y,
         groups=groups,
-        param_grid=param_grid
+        param_grid=clean_param_grid
     )
 
-    # Train final model
-    best_params = results['fold_results'][-1]['best_params']
+    # Train final model with best parameters
+    best_params = {k: v for k, v in results['fold_results'][-1]['best_params'].items()
+                   if k.replace('model__', '') in supported_params}
+
     final_pipeline = Pipeline([
         ('scaler', StandardScaler()),
         ('model', SurvivalSVMWrapper(**{k.replace('model__', ''): v
@@ -111,9 +123,9 @@ def create_pipeline_and_param_grid():
     ])
 
     param_grid = {
-        'model__alpha': [0.1],
+        'model__alpha': [0.1, 1.0],
         'model__max_iter': [100],
-        'model__rank_ratio': [0.5]
+        'model__rank_ratio': [0.5, 1.0]
     }
 
     return pipe, param_grid
