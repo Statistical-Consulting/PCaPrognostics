@@ -32,6 +32,8 @@ class ModellingProcess():
         self.X = None
         self.y = None
         self.groups = None
+        self.path = None
+        self.fname_cv = None
         pass
             
     def prepare_data(self, data_config, root): 
@@ -44,6 +46,12 @@ class ModellingProcess():
         
         if config.get("params_mp", None) is not None: 
             self.set_params(config['params_mp'])
+        
+        if config.get("path", None) is None or config.get("fname_cv", None) is None: 
+            logger.warning("Didn't get sufficient path info for saving cv-results")
+        else: 
+            self.path = config['path']
+            self.fname_cv = config['fname_cv']
         
         err, mes = self._check_modelling_prerequs(pipeline_steps)
         if err: 
@@ -65,6 +73,8 @@ class ModellingProcess():
             if do_nested_resampling: 
                 logger.info("Nested resampling...")
                 self.nrs = nested_resampling(self.pipe, self.X, self.y, self.groups, param_grid, self.ss, self.outer_cv, self.inner_cv)
+                if (self.fname_cv is not None) and (self.path is not None): 
+                    self.save_results(self.path, self.fname_cv, model = None, cv_results = self.nrs, pipe = None)
         except Exception as e:
             logger.error(f"Error during nested resampling: {str(e)}")
             raise
@@ -107,7 +117,7 @@ class ModellingProcess():
         else: 
             results_dir = os.path.join(path, 'results')
             os.makedirs(results_dir, exist_ok=True)
-            results_file = os.path.join(results_dir, f"{fname}_cv_results.csv")
+            results_file = os.path.join(results_dir, f"{fname}_cv.csv")
             pd.DataFrame(cv_results).to_csv(results_file)
             logger.info(f"Saved CV results to {results_file}")
             
