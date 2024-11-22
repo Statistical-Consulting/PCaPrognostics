@@ -8,6 +8,7 @@ import torch
 from lifelines.utils import concordance_index
 from sklearn.utils.validation import check_X_y, check_is_fitted
 import logging
+from sklearn.model_selection import train_test_split
 
 logger = logging.getLogger(__name__)
 
@@ -66,13 +67,14 @@ class DeepSurvModel(BaseEstimator, RegressorMixin):
         self.model.to(self.device)
         
         # Prepare and scale data
-        train_dataset_ = self._prepare_data(X, y)
+        train_dataset_, val_dataset_ = self._prepare_data(X, y, val_split = 0.1)
         train_loader_ = DataLoader(train_dataset_, batch_size=128, shuffle=True)
-
+        val_loader = DataLoader(val_dataset_, batch_size = 32, shuffle = True)
+        
         # Training loop
         for epoch in range(num_epochs):
             self.model.train()
-            epoch_loss_ = 0
+            epoch_loss_ = 0.0
             n_batches_ = 0
             for X_batch, time_batch, event_batch in train_loader_:
                 loss = self._train_step(X_batch, time_batch, event_batch)
@@ -80,6 +82,16 @@ class DeepSurvModel(BaseEstimator, RegressorMixin):
                 n_batches_ += 1
             avg_train_loss = epoch_loss_ / n_batches_
             self.training_history_['train_loss'].append(avg_train_loss)
+            
+            # enter validation mode
+            self.model.eval()
+            val_loss = 0.0
+            with torch.no_grad():
+                for X_batch, time_batch, event_batch in val_loader:
+                    val_loss += self._eval_step(X_batch, time_batch, event_batch)
+
+            val_loss = val_loss / len(val_loader)
+            print(f"Epoch {epoch+1}, Train Loss; {avg_train_loss:.4f}, Validation Loss: {val_loss:.4f}")
         
         self.is_fitted_ = True
         return self
@@ -115,16 +127,27 @@ class DeepSurvModel(BaseEstimator, RegressorMixin):
     def clone(self): 
         super(self).clone()
 
-    def _prepare_data(self, X, y):
-        X_scaled = self.scaler.fit_transform(X)
-        times = np.ascontiguousarray(y['time']).astype(np.float32)
-        event_field = 'status' if 'status' in y.dtype.names else 'event'
-        events = np.ascontiguousarray(y[event_field]).astype(np.float32)
+    def _prepare_data(self, X, y, val_split = 0.1):
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=val_split, random_state=42)
         
-        X_tensor = torch.FloatTensor(X_scaled).to(self.device)
-        time_tensor = torch.FloatTensor(times).to(self.device)
-        event_tensor = torch.FloatTensor(events).to(self.device)
-        return TensorDataset(X_tensor, time_tensor, event_tensor)
+        X_scaled_train = self.scaler.fit_transform(X_train)
+        times_train = np.ascontiguousarray(y_train['time']).astype(np.float32)
+        event_field_train = 'status' if 'status' in y_train.dtype.names else 'event'
+        events_train = np.ascontiguousarray(y_train[event_field_train]).astype(np.float32)
+        X_tensor_train = torch.FloatTensor(X_scaled_train).to(self.device)
+        time_tensor_train = torch.FloatTensor(times_train).to(self.device)
+        event_tensor_train = torch.FloatTensor(events_train).to(self.device)
+
+        X_scaled_val = self.scaler.transform(X_val)
+        times_val = np.ascontiguousarray(y_val['time']).astype(np.float32)
+        event_field_val = 'status' if 'status' in y_val.dtype.names else 'event'
+        events_val = np.ascontiguousarray(y_val[event_field_val]).astype(np.float32)
+        X_tensor_val = torch.FloatTensor(X_scaled_val).to(self.device)
+        time_tensor_val = torch.FloatTensor(times_val).to(self.device)
+        event_tensor_val = torch.FloatTensor(events_val).to(self.device)
+
+        
+        return TensorDataset(X_tensor_train, time_tensor_train, event_tensor_train), TensorDataset(X_tensor_val, time_tensor_val, event_tensor_val)
 
     def _negative_log_likelihood(self, risk_pred, times, events):
         _, idx = torch.sort(times, descending=True)
@@ -147,6 +170,12 @@ class DeepSurvModel(BaseEstimator, RegressorMixin):
 
         self.optimizer.step()
         return loss.item()
+    
+    def _eval_step(self, X, times, events): 
+        risk_pred = self.model(X)
+        loss = self._negative_log_likelihood(risk_pred, times, events)
+        return loss.item()
+        
 
     def c_index(self, risk_pred, y):
         if not isinstance(y, np.ndarray):
