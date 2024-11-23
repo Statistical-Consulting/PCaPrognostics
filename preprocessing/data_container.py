@@ -3,6 +3,8 @@ import numpy as np
 from preprocessing.data_loader import DataLoader
 from preprocessing.dimension_reduction import PCADimensionReduction
 import logging
+import pandas as pd
+from sklearn.preprocessing import OneHotEncoder
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,8 @@ class DataContainer:
             'gene_type': 'intersection',
             'use_imputed': True,
             'validation_split': 0.2,
-            'use_cohorts': True
+            'use_cohorts': True, 
+            'clinical_covs' : None
         }
 
         # Update with provided config
@@ -50,6 +53,17 @@ class DataContainer:
 
             # Extract cohort information
             self.groups = np.array([idx.split('.')[0] for idx in X.index])
+            
+            if self.config.get('clinical_covs', None) is not None:
+                logger.info('Found clinical data specification')
+                clin_data = pdata.loc[:, self.config['clinical_covs']] 
+                ohc = OneHotEncoder()
+                cat_cols = clin_data.select_dtypes(exclude=['number']).columns
+                num_cols = clin_data.select_dtypes(exclude=['object']).columns
+                clin_data_cat = ohc.fit_transform(clin_data.loc[:, cat_cols])
+                clin_data_cat = pd.DataFrame.sparse.from_spmatrix(clin_data_cat, columns=ohc.get_feature_names_out()).set_index(X.index)
+                clin_data_num = clin_data.loc[:, num_cols]
+                X = pd.concat([clin_data_cat, clin_data_num, X], axis = 1)
 
             # Apply PCA if configured
             if self.config['use_pca']:
