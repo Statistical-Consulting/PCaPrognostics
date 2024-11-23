@@ -38,7 +38,7 @@ def _aggregate_results(results):
         'fold_results': results
     }
 
-def nested_resampling(estimator, X, y, groups, param_grid, ss = GridSearchCV, outer_cv = LeaveOneGroupOut(), inner_cv = LeaveOneGroupOut(), scoring = None):
+def nested_resampling(estimator, X, y, groups, param_grid, monitor = None, ss = GridSearchCV, outer_cv = LeaveOneGroupOut(), inner_cv = LeaveOneGroupOut(), scoring = None):
     logger.info("Starting nested resampling...")
     logger.info(f"Data shape: X={X.shape}, groups={len(np.unique(groups))} unique")
 
@@ -57,7 +57,11 @@ def nested_resampling(estimator, X, y, groups, param_grid, ss = GridSearchCV, ou
         logger.info(f"Test cohort: {test_cohort}")
         
         inner_gcv = ss(estimator, param_grid, cv = inner_cv, refit = True, n_jobs=-1, verbose = 2)
-        inner_results = inner_gcv.fit(X_train, y_train, groups = train_groups)
+        if monitor is not None:
+            inner_results = inner_gcv.fit(X_train, y_train, groups = train_groups, model__monitor = monitor)
+            logger.info(f'number of iterations early stopping: {inner_results.best_estimator_.named_steps['model'].n_estimators_}')
+        else: 
+            inner_results = inner_gcv.fit(X_train, y_train, groups = train_groups)
         
         inner_cv_results = inner_results.cv_results_
         inner_best_params = inner_results.best_params_

@@ -60,7 +60,7 @@ class ModellingProcess():
         else: 
             self.pipe = Pipeline(pipeline_steps) 
         
-        param_grid, do_nested_resampling, refit_hp_tuning = self._get_config_vals(config)
+        param_grid, monitor, do_nested_resampling, refit_hp_tuning = self._get_config_vals(config)
         
         # TODO: do this
         #param_grid = self._prefix_pipeline_params(param_grid, pipeline_steps)
@@ -72,7 +72,7 @@ class ModellingProcess():
                         
             if do_nested_resampling: 
                 logger.info("Nested resampling...")
-                self.nrs = nested_resampling(self.pipe, self.X, self.y, self.groups, param_grid, self.ss, self.outer_cv, self.inner_cv)
+                self.nrs = nested_resampling(self.pipe, self.X, self.y, self.groups, param_grid, monitor, self.ss, self.outer_cv, self.inner_cv)
                 if (self.fname_cv is not None) and (self.path is not None): 
                     self.save_results(self.path, self.fname_cv, model = None, cv_results = self.nrs, pipe = None)
         except Exception as e:
@@ -93,12 +93,14 @@ class ModellingProcess():
         return self.nrs, self.cmplt_model, self.cmplt_pipeline
     
     
-    def fit_cmplt_model(self, param_grid): 
+    def fit_cmplt_model(self, param_grid, monitor = None): 
         logger.info("Do HP Tuning for complete model")
         res = self.ss(estimator=self.pipe, param_grid=param_grid, cv=self.outer_cv, n_jobs=-1, verbose = 2, refit = True)
-        res.fit(self.X, self.y, groups = self.groups)
-        self.cmplt_model = res.best_estimator_.named_steps['model']  
-        self.cmplt_pipeline = res.best_estimator_
+        if monitor is not None: 
+            res.fit(self.X, self.y, groups = self.groups, model__monitor = monitor)
+        else: 
+            res.fit(self.X, self.y, groups = self.groups) 
+        return res.best_estimator_.named_steps['model']  
     
     
     def save_results(self, path, fname, model = None, cv_results = None, pipe = None): 
@@ -151,10 +153,12 @@ class ModellingProcess():
         return err, mes
 
     def _get_config_vals(self, config): 
-        if config.get("params_cv", None) is None: 
-            logger.warning("No param grid for (nested) resampling detected - will fit model with default HPs and on complete data")
-            return None, False, False
-        return config['params_cv'], config.get('do_nested_resampling', True) , config.get('refit', True)
+            if config.get("params_cv", None) is None: 
+                logger.warning("No param grid for (nested) resampling detected - will fit model with default HPs and on complete data")
+                return None, False, False
+            if config.get('monitor', None) is None: 
+                logger.info("No additional monitoring detected")
+            return config['params_cv'], config.get('monitor', None), config.get('do_nested_resampling', True) , config.get('refit', True)
     
     def set_params(self, params):
         for key, value in params.items():
