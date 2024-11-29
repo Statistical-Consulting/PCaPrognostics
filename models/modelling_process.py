@@ -100,7 +100,8 @@ class ModellingProcess():
             res.fit(self.X, self.y, groups = self.groups, model__monitor = monitor)
         else: 
             res.fit(self.X, self.y, groups = self.groups) 
-        return res.best_estimator_.named_steps['model']  
+        self.resampling_cmplt = res
+        return res.best_estimator_.named_steps['model'], res  
     
     
     def save_results(self, path, fname, model = None, cv_results = None, pipe = None): 
