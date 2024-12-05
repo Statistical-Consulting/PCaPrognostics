@@ -166,7 +166,7 @@ merge_pdata <- function(processed_cohorts, rel_cols) {
       GLEASON_SCORE = as.numeric(GLEASON_SCORE),
       PRE_OPERATIVE_PSA = as.numeric(PRE_OPERATIVE_PSA),
       MONTH_TO_BCR = as.numeric(MONTH_TO_BCR),
-      BCR_STATUS = as.numeric(BCR_STATUS),
+      BCR_STATUS = as.factor(BCR_STATUS),
       across(where(is.character), as.factor)
     )
   
