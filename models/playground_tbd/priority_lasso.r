@@ -28,11 +28,14 @@ remove_small_blocks <- function(indcs, df_data){
 index_list = construct_indcs_bp(df_blockwise_indcs)
 df_data = df_blockwise_data[, -1]
 #df_data = remove_small_blocks(df_blockwise_indcs, df_blockwise_data)
-df_data
+df_data[] <- lapply(df_data, function(x) as.numeric(as.character(x)))
+df_data[is.na(df_data)] <- 0
+df_pData$MONTH_TO_BCR <- as.numeric(as.character(df_pData$MONTH_TO_BCR))
+df_pData$MONTH_TO_BCR[df_pData$MONTH_TO_BCR == 0] <- 0.0001
 y = Surv(as.numeric(as.character(df_pData$MONTH_TO_BCR)), df_pData$BCR_STATUS)
 
 prio_lasso = prioritylasso(
-df_data,
+  df_data_num,
 y,
 family = "cox",
 blocks = index_list, 
