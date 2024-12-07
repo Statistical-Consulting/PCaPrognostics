@@ -59,7 +59,6 @@ def nested_resampling(estimator, X, y, groups, param_grid, monitor = None, ss = 
         inner_gcv = ss(estimator, param_grid, cv = inner_cv, refit = True, n_jobs=-1, verbose = 2)
         if monitor is not None:
             inner_results = inner_gcv.fit(X_train, y_train, groups = train_groups, model__monitor = monitor)
-            logger.info(f'number of iterations early stopping: {inner_results.best_estimator_.named_steps['model'].n_estimators_}')
         else: 
             inner_results = inner_gcv.fit(X_train, y_train, groups = train_groups)
         
