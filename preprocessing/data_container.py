@@ -54,6 +54,18 @@ class DataContainer:
             # Extract cohort information
             self.groups = np.array([idx.split('.')[0] for idx in X.index])
             
+            # Apply PCA if configured
+            if self.config['use_pca']:
+                logger.info("Applying PCA...")
+                self.pca = PCADimensionReduction(
+                    variance_threshold=self.config['pca_threshold']
+                )
+                X = self.pca.fit_transform(X)
+            
+            if self.config['select_random']: 
+               logger.info("Selecting random subsets of genes...")
+               X = X.sample(frac = self.config['random_frac'], axis = 1)
+                        
             if self.config.get('clinical_covs', None) is not None:
                 logger.info('Found clinical data specification')
                 clin_data = pdata.loc[:, self.config['clinical_covs']] 
@@ -64,14 +76,6 @@ class DataContainer:
                 clin_data_cat = pd.DataFrame.sparse.from_spmatrix(clin_data_cat, columns=ohc.get_feature_names_out()).set_index(X.index)
                 clin_data_num = clin_data.loc[:, num_cols]
                 X = pd.concat([clin_data_cat, clin_data_num, X], axis = 1)
-
-            # Apply PCA if configured
-            if self.config['use_pca']:
-                logger.info("Applying PCA...")
-                self.pca = PCADimensionReduction(
-                    variance_threshold=self.config['pca_threshold']
-                )
-                X = self.pca.fit_transform(X)
 
             logger.info(f"Loaded data: {X.shape[0]} samples, {X.shape[1]} features")
             return X, y
