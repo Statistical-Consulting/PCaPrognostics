@@ -13,8 +13,9 @@ construct_indcs_bp <- function(df){
     range_list
 }
 
+# allows to remove sma
 remove_small_blocks <- function(indcs, df_data){
-    indcs = indcs[indcs$nmb_genes == 1,]
+    indcs = indcs[indcs$nmb_genes <= 300,]
     for(i in 1:nrow(indcs)){
         i_start = indcs[i, 'i_start']+1
         i_end = indcs[i, 'i_end']+1
@@ -40,5 +41,3 @@ block1.penalization = TRUE,
 lambda.type = "lambda.1se",
 type.measure = "deviance"
 )
-summary(y)
-

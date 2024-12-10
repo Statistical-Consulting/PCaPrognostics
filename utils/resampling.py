@@ -66,7 +66,7 @@ def nested_resampling(estimator, X, y, groups, param_grid, monitor = None, ss = 
         inner_cv_results = inner_results.cv_results_
         inner_best_params = inner_results.best_params_
         
-        outer_model = inner_results.best_estimator_.named_steps['model']
+        outer_model = inner_results.best_estimator_
         test_score = outer_model.score(X_test, y_test)
 
         logger.info(f"Best parameters: {inner_best_params}")
