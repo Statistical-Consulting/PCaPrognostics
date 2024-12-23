@@ -224,8 +224,13 @@ create_merged_exprs_for_imputation <- function(cohorts_dict) {
   return(all_exprs_merged)
 }
 
+
+
+
+
+
 # Main function
-main <- function(rds_file_names) {
+main_processing <- function(rds_file_names) {
   # Relevante Spalten definieren
   rel_cols <- c('AGE', 'TISSUE', 'PATH_T_STAGE', 'GLEASON_SCORE', 
                 'PRE_OPERATIVE_PSA', 'MONTH_TO_BCR', 'CLIN_T_STAGE', 'BCR_STATUS')
@@ -301,9 +306,82 @@ main <- function(rds_file_names) {
   ))
 }
 
-# Run the main function
+# Neue Funktion für Test Cohorten - nach allen anderen Funktionen einfügen
+process_test_cohorts <- function(test_rds_file) {
+  # Load test cohorts
+  test_cohorts <- readRDS(file.path(".", "data", test_rds_file))
+  
+  # Process each cohort
+  processed_test_cohorts <- lapply(test_cohorts, function(eset) {
+    # Extract pData and check BCR_STATUS
+    pdata <- as.data.frame(pData(eset))
+    if(all(is.na(pdata$BCR_STATUS)) && "DOD_STATUS" %in% colnames(pdata)) {
+      pdata$BCR_STATUS <- pdata$DOD_STATUS
+    }
+    
+    list(
+      pData = pdata,
+      exprs = as.data.frame(exprs(eset))
+    )
+  })
+  
+  # Merge pData from test cohorts
+  test_pdata <- do.call(rbind, lapply(processed_test_cohorts, function(x) x$pData))
+  
+  # Create merged expression matrix for test cohorts
+  test_exprs_list <- lapply(processed_test_cohorts, function(x) {
+    exprs_df <- x$exprs
+    return(exprs_df)
+  })
+  
+  # Find intersection of genes among test cohorts
+  test_common_genes <- Reduce(intersect, lapply(test_exprs_list, rownames))
+  
+  # Filter for common genes
+  test_exprs_filtered <- lapply(test_exprs_list, function(df) {
+    df[test_common_genes,]
+  })
+  
+  # Merge test expression data
+  test_exprs <- do.call(cbind, test_exprs_filtered)
+  
+  # Load training intersection genes to filter test data
+  training_intersect <- read.csv(file.path(".", "data", "merged_data", "exprs", "intersection", "exprs_intersect.csv"), row.names=1)
+  training_genes <- colnames(training_intersect)
+  
+  # Filter test expression data for genes present in training data
+  final_genes <- intersect(rownames(test_exprs), training_genes)
+  test_exprs_final <- test_exprs[final_genes,]
+  
+  # Save test data
+  write.csv(test_pdata, file.path(".", "data", "merged_data", "pData", "original", "test_pData.csv"))
+  write.csv(t(test_exprs_final), file.path(".", "data", "merged_data", "exprs", "all_genes", "test_exprs.csv"))
+  
+  return(list(
+    test_pdata = test_pdata,
+    test_exprs = test_exprs_final
+  ))
+}
+
+# Neue main Funktion die beides koordiniert - ersetzt die alte main Funktion
+main <- function(rds_file_names, test_rds_file) {
+  # Run original preprocessing
+  result <- main_processing(rds_file_names)
+  
+  # Process test cohorts
+  test_result <- process_test_cohorts(test_rds_file)
+  
+  # Return combined results
+  return(list(
+    training = result,
+    test = test_result
+  ))
+}
+
+# Neuer Aufruf am Ende der Datei
 rds_file_names <- c("PCa_cohorts.Rds")
-result <- main(rds_file_names)
+test_rds_file <- "PCa_cohorts_2.Rds"
+result <- main(rds_file_names, test_rds_file)
 
 
 
