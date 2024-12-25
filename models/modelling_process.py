@@ -87,8 +87,8 @@ class ModellingProcess():
                 logger.error(f"Error during complete model training: {str(e)}")
                 raise    
         elif refit_hp_tuning is False and do_nested_resampling is False: 
-            logger.info("Fit complete model wo. HP tuning (on default params)")
-            self.cmplt_model = self.pipe.fit(self.X, self.y)
+            logger.info("Fit complete pipeline wo. HP tuning (on default params)")
+            self.cmplt_pipeline = self.pipe.fit(self.X, self.y)
         
         return self.nrs, self.cmplt_model, self.cmplt_pipeline
     
@@ -101,6 +101,8 @@ class ModellingProcess():
         else: 
             res.fit(self.X, self.y, groups = self.groups) 
         self.resampling_cmplt = res
+        self.cmplt_pipeline = res.best_estimator_
+        self.cmplt_model = res.best_estimator_.named_steps['model']
         return res.best_estimator_.named_steps['model'], res  
     
     

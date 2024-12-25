@@ -31,5 +31,6 @@ def create_block_data(X, threshold_nmb_genes = 1):
             block_indcs.append(indx_dict)    
     
     df_block_data = pd.concat(block_data, axis = 1)
+    df_block_data['cohort'] = X['cohort']
     df_block_indices = pd.DataFrame(block_indcs).sort_values(by = ['nmb_cohs', 'nmb_genes'], ascending= False)
     return df_block_data, df_block_indices
