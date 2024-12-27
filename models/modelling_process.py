@@ -41,6 +41,16 @@ class ModellingProcess():
         self.X, self.y = self.dc.load_data()
         self.groups = self.dc.get_groups()
     
+    def get_testing_cohorts(self): 
+        ind_X, ind_y = self.dc.load_val_cohrts()
+        
+    def do_external_validation(self, model_path): 
+        if self.cmplt_pipeline is None:
+            self.load_pipe(model_path)     
+        ind_X, ind_y = self.dc.load_val_cohrts()
+        
+        # TODO: Model/Pipeline.score
+    
     def do_modelling(self, pipeline_steps, config): 
         self._set_seed()
         
@@ -128,6 +138,7 @@ class ModellingProcess():
             
         if pipe is None: 
             logger.warning("Won't save any pipe, since its not provided")
+        else:
             pipe_dir = os.path.join(path, 'pipe')
             os.makedirs(pipe_dir, exist_ok=True)
             with open(os.path.join(pipe_dir, f"{fname}.pkl"), 'wb') as f:
