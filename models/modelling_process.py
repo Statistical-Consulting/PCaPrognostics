@@ -41,6 +41,16 @@ class ModellingProcess():
         self.X, self.y = self.dc.load_data()
         self.groups = self.dc.get_groups()
     
+    def get_testing_cohorts(self): 
+        ind_X, ind_y = self.dc.load_val_cohrts()
+        
+    def do_external_validation(self, model_path): 
+        if self.cmplt_pipeline is None:
+            self.load_pipe(model_path)     
+        ind_X, ind_y = self.dc.load_val_cohrts()
+        
+        # TODO: Model/Pipeline.score
+    
     def do_modelling(self, pipeline_steps, config): 
         self._set_seed()
         
@@ -87,8 +97,8 @@ class ModellingProcess():
                 logger.error(f"Error during complete model training: {str(e)}")
                 raise    
         elif refit_hp_tuning is False and do_nested_resampling is False: 
-            logger.info("Fit complete model wo. HP tuning (on default params)")
-            self.cmplt_model = self.pipe.fit(self.X, self.y)
+            logger.info("Fit complete pipeline wo. HP tuning (on default params)")
+            self.cmplt_pipeline = self.pipe.fit(self.X, self.y)
         
         return self.nrs, self.cmplt_model, self.cmplt_pipeline
     
@@ -101,6 +111,8 @@ class ModellingProcess():
         else: 
             res.fit(self.X, self.y, groups = self.groups) 
         self.resampling_cmplt = res
+        self.cmplt_pipeline = res.best_estimator_
+        self.cmplt_model = res.best_estimator_.named_steps['model']
         return res.best_estimator_.named_steps['model'], res  
     
     
@@ -126,6 +138,7 @@ class ModellingProcess():
             
         if pipe is None: 
             logger.warning("Won't save any pipe, since its not provided")
+        else:
             pipe_dir = os.path.join(path, 'pipe')
             os.makedirs(pipe_dir, exist_ok=True)
             with open(os.path.join(pipe_dir, f"{fname}.pkl"), 'wb') as f:

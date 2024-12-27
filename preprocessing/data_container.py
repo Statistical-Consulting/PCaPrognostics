@@ -75,7 +75,12 @@ class DataContainer:
                 clin_data_cat = ohc.fit_transform(clin_data.loc[:, cat_cols])
                 clin_data_cat = pd.DataFrame.sparse.from_spmatrix(clin_data_cat, columns=ohc.get_feature_names_out()).set_index(X.index)
                 clin_data_num = clin_data.loc[:, num_cols]
-                X = pd.concat([clin_data_cat, clin_data_num, X], axis = 1)
+                
+                if self.config.get('only_pData', False) is not False: 
+                    logger.info('Only uses pData')
+                    X = pd.concat([clin_data_cat, clin_data_num], axis = 1)
+                else:
+                    X = pd.concat([clin_data_cat, clin_data_num, X], axis = 1)
 
             logger.info(f"Loaded data: {X.shape[0]} samples, {X.shape[1]} features")
             return X, y
