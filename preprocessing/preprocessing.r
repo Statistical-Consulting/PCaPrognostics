@@ -306,7 +306,6 @@ main_processing <- function(rds_file_names) {
   ))
 }
 
-# Neue Funktion für Test Cohorten - nach allen anderen Funktionen einfügen
 process_test_cohorts <- function(test_rds_file) {
   # Load test cohorts
   test_cohorts <- readRDS(file.path(".", "data", test_rds_file))
@@ -321,7 +320,8 @@ process_test_cohorts <- function(test_rds_file) {
     
     list(
       pData = pdata,
-      exprs = as.data.frame(exprs(eset))
+      exprs = as.data.frame(exprs(eset)),
+      cohort = eset$cohort[1]  # Get cohort name
     )
   })
   
@@ -353,9 +353,25 @@ process_test_cohorts <- function(test_rds_file) {
   final_genes <- intersect(rownames(test_exprs), training_genes)
   test_exprs_final <- test_exprs[final_genes,]
   
-  # Save test data
+  # Save test data (merged)
   write.csv(test_pdata, file.path(".", "data", "merged_data", "pData", "original", "test_pData.csv"))
   write.csv(t(test_exprs_final), file.path(".", "data", "merged_data", "exprs", "all_genes", "test_exprs.csv"))
+  
+  # Save individual test cohorts
+  for(i in seq_along(processed_test_cohorts)) {
+    cohort_name <- processed_test_cohorts[[i]]$cohort
+    cohort_exprs <- processed_test_cohorts[[i]]$exprs
+    
+    # Filter for training genes
+    cohort_final_genes <- intersect(rownames(cohort_exprs), training_genes)
+    cohort_exprs_final <- cohort_exprs[cohort_final_genes,]
+    
+    # Save individual cohort expression data
+    write.csv(t(cohort_exprs_final), 
+              file.path(".", "data", "merged_data", "exprs", "all_genes", 
+                        paste0(cohort_name, "_exprs.csv")),
+              row.names = TRUE)
+  }
   
   return(list(
     test_pdata = test_pdata,
