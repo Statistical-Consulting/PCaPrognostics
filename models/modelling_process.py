@@ -92,20 +92,24 @@ class ModellingProcess():
         if refit_hp_tuning: 
             try:
                 logger.info("Do HP Tuning for complete model; refit + set complete model")
-                self.fit_cmplt_model(param_grid)   
+                self.fit_cmplt_model(param_grid)  
+                if (self.fname_cv is not None) and (self.path is not None): 
+                    self.save_results(self.path, self.fname_cv, model = self.cmplt_model, cv_results = None, pipe = self.cmplt_pipeline) 
             except Exception as e:
                 logger.error(f"Error during complete model training: {str(e)}")
                 raise    
         elif refit_hp_tuning is False and do_nested_resampling is False: 
             logger.info("Fit complete pipeline wo. HP tuning (on default params)")
             self.cmplt_pipeline = self.pipe.fit(self.X, self.y)
+            if (self.fname_cv is not None) and (self.path is not None): 
+                    self.save_results(self.path, self.fname_cv, model = None, cv_results = None, pipe = self.cmplt_pipeline)
         
         return self.nrs, self.cmplt_model, self.cmplt_pipeline
     
     
     def fit_cmplt_model(self, param_grid, monitor = None): 
         logger.info("Do HP Tuning for complete model")
-        res = self.ss(estimator=self.pipe, param_grid=param_grid, cv=self.outer_cv, n_jobs=-1, verbose = 2, refit = True)
+        res = self.ss(estimator=self.pipe, param_grid=param_grid, cv=self.outer_cv, n_jobs=4, verbose = 2, refit = True)
         if monitor is not None: 
             res.fit(self.X, self.y, groups = self.groups, model__monitor = monitor)
         else: 
@@ -126,6 +130,7 @@ class ModellingProcess():
             os.makedirs(model_dir, exist_ok=True)
             with open(os.path.join(model_dir, f"{fname}.pkl"), 'wb') as f:
                 pickle.dump(model, f)
+            logger.info(f"Saved model to {model_dir}")
         
         if cv_results is None: 
             logger.warning("Won't save any cv results, since its not provided")
@@ -143,6 +148,8 @@ class ModellingProcess():
             os.makedirs(pipe_dir, exist_ok=True)
             with open(os.path.join(pipe_dir, f"{fname}.pkl"), 'wb') as f:
                 pickle.dump(pipe, f)
+            logger.info(f"Saved pipe to {pipe_dir}")
+
 
 
     def save_pipe(self): 

@@ -56,7 +56,7 @@ def nested_resampling(estimator, X, y, groups, param_grid, monitor = None, ss = 
         test_cohort = groups[test_idx][0] if groups is not None else None
         logger.info(f"Test cohort: {test_cohort}")
         
-        inner_gcv = ss(estimator, param_grid, cv = inner_cv, refit = True, n_jobs=-1, verbose = 2)
+        inner_gcv = ss(estimator, param_grid, cv = inner_cv, refit = True, n_jobs=4, verbose = 2)
         if monitor is not None:
             inner_results = inner_gcv.fit(X_train, y_train, groups = train_groups, model__monitor = monitor)
             logger.info(

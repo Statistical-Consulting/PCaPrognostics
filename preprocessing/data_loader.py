@@ -22,7 +22,7 @@ class DataLoader:
         self.merged_pdata_imputed = None
 
         self._verify_paths()
-        self.load_all_data()
+        #self.load_all_data()
 
     def _verify_paths(self):
         """Verify that all required data directories exist"""
@@ -91,20 +91,28 @@ class DataLoader:
         self.merged_pdata_imputed = self.load_csv_files(
             os.path.join(merged_pdata_path, 'imputed')
         )
-
+        
+    
     def get_merged_data(self, gene_type='intersection', use_imputed=True):
         """Get merged expression and pData"""
+        
+        exprs_path = os.path.join(self.merged_data_path, 'exprs')
         if gene_type == 'all_genes':
-            exprs = self.all_genes_data['all_genes.csv']
+            exprs = self.load_csv_files(
+                os.path.join(exprs_path, 'all_genes')
+                )['all_genes.csv']
         elif gene_type == 'common_genes':
-            exprs = self.common_genes_data[
+            exprs = self.load_csv_files(os.path.join(exprs_path, 'common_genes'))[
                 'common_genes_knn_imputed.csv' if use_imputed else 'common_genes.csv'
             ]
         else:  # intersection
-            exprs = self.intersection_data['exprs_intersect.csv']
+            exprs = self.load_csv_files(os.path.join(exprs_path, 'intersection'))['exprs_intersect.csv']
 
-        pdata = self.merged_pdata_imputed['merged_imputed_pData.csv'] \
-            if use_imputed else self.merged_pdata_original['merged_original_pData.csv']
+        merged_pdata_path = os.path.join(self.merged_data_path, 'pData')
+        pdata = self.load_csv_files(
+            os.path.join(merged_pdata_path, 'original')
+        )['merged_original_pData.csv'] \
+            if use_imputed else self.load_csv_files(os.path.join(merged_pdata_path, 'imputed'))['merged_imputed_pData.csv']
 
         return exprs, pdata
 
