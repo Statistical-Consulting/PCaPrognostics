@@ -67,17 +67,17 @@ MODEL_CONFIG = {
     'params_cv': {
         'model__n_estimators': [500],
         'model__learning_rate': [0.1],
-        'model__max_depth': [3, 5],
-        'model__min_samples_split': [3, 5, 10, 25],
-        'model__min_samples_leaf': [1, 3, 5, 10],
-        'model__subsample': [0.8],
-        'model__max_features': ['sqrt', 'log2', 0.1], 
-        'model__n_iter_no_change' : [10], 
-        'model__validation_fraction' : [0.1]
+        'model__max_depth': [3, 5, 10, 15],
+        'model__min_samples_split': [2, 4, 10, 24],
+        'model__min_samples_leaf': [3, 5, 10],
+        'model__subsample': [0.9],
+        'model__max_features': ['sqrt', 'log2'], 
+        #'model__n_iter_no_change' : [5, 10], 
+        #'model__validation_fraction' : [0.1]
     },
     'refit': True, 
     'do_nested_resampling': True, 
-    #'monitor' : monitor, 
+    'monitor' : monitor, 
     'path' : RESULTS_DIR, 
     'fname_cv' : 'test'}
 
