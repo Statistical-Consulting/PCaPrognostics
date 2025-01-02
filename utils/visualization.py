@@ -28,7 +28,7 @@ def plot_survival_curves(model, X_test, y_test, groups=None, n_curves=5):
 
             # Plot actual event if it occurred
             if y_subset[i]['status']:
-                plt.scatter(y_subset[i]['time'], 0.5, color='red', marker='x')
+                plt.scatter(y_subset[i]['time'], 0, color='red', marker='x')
 
         plt.xlabel('Time')
         plt.ylabel('Survival Probability')

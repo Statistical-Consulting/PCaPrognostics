@@ -109,11 +109,12 @@ class DataLoader:
             exprs = self.load_csv_files(os.path.join(exprs_path, 'intersection'))['exprs_intersect.csv']
 
         merged_pdata_path = os.path.join(self.merged_data_path, 'pData')
-        pdata = self.load_csv_files(
+        pdata =  self.load_csv_files(os.path.join(merged_pdata_path, 'imputed'))['merged_imputed_pData.csv'] \
+            if use_imputed else self.load_csv_files(
             os.path.join(merged_pdata_path, 'original')
-        )['merged_original_pData.csv'] \
-            if use_imputed else self.load_csv_files(os.path.join(merged_pdata_path, 'imputed'))['merged_imputed_pData.csv']
-
+        )['merged_original_pData.csv']
+            
+        
         return exprs, pdata
 
     def prepare_survival_data(self, pdata):
