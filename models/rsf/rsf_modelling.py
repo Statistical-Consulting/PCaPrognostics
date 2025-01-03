@@ -34,27 +34,31 @@ logger = logging.getLogger(__name__)
 DATA_CONFIG = {
     'use_pca': False,
     'pca_threshold': 0.95,
-    'gene_type': 'intersect',
+    'gene_type': 'common_genes',
     'use_imputed': True,
     'use_cohorts': False,
-    'select_random': False
+    'select_random': False, 
+    'requires_ohenc' : True, 
+    'clinical_covs' : ['AGE', 'TISSUE', 'GLEASON_SCORE', 'PATH_T_STAGE']
 }
 
 # Model configuration
 MODEL_CONFIG = {
     'params_cv': {
-        'model__n_estimators': [100],
-        'model__min_samples_split': [6],
-        'model__max_features': ['sqrt', 'log2', 0.05],
-        'model__bootstrap': [False],
-        'model__n_jobs': [-1],
+        'model__n_estimators': [50, 60, 70],
+        'model__min_samples_split': [12],
+        'model__max_features': ['sqrt', 'log2'],
+        'model__bootstrap': [True],
+        'model__max_samples' : [0.4], 
+        #'model__n_jobs': [-1],
         'model__random_state': [1234],
-        'model__low_memory': [True]
+        #'model__low_memory': [True], 
+        'model__warm_start' : [True]
     },
-    'refit': False,
-    'do_nested_resampling': True,
+    'refit': True,
+    'do_nested_resampling': False,
     'path': RESULTS_DIR,
-    'fname_cv': 'results_intersect'
+    'fname_cv': 'results_common'
 }
 
 rsf_pipeline_steps = [('model', RandomSurvivalForest())]
@@ -65,11 +69,11 @@ mp.prepare_data(DATA_CONFIG, PROJECT_ROOT)
 nstd_res_result = mp.do_modelling(rsf_pipeline_steps, MODEL_CONFIG)
 
 # Optional: Save results
-if nstd_res_result is not None:
-    mp.save_results(
-        path=RESULTS_DIR,
-        fname='rsf_model',
-        model=nstd_res_result[1],
-        cv_results=nstd_res_result[0],
-        pipe=nstd_res_result[2]
-    )
+# if nstd_res_result is not None:
+#     mp.save_results(
+#         path=RESULTS_DIR,
+#         fname='rsf_model',
+#         model=nstd_res_result[1],
+#         cv_results=nstd_res_result[0],
+#         pipe=nstd_res_result[2]
+#     )

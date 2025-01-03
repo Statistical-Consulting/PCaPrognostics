@@ -37,7 +37,7 @@ monitor = EarlyStoppingMonitor(10, 5)
 DATA_CONFIG = {
     'use_pca': False,
     'pca_threshold': 0.85,
-    'gene_type': 'intersection',
+    'gene_type': 'common_genes',
     'use_imputed': True,
     'select_random' : False, 
     'use_cohorts': False
@@ -67,7 +67,8 @@ MODEL_CONFIG = {
     'params_cv': {
         'model__n_estimators': [500],
         'model__learning_rate': [0.1],
-        'model__max_depth': [3, 5, 10, 15],
+        #'model__max_depth': [3, 5, 10, 15],
+        'model__max_depth': [3, 5, 10],
         'model__min_samples_split': [2, 4, 10, 24],
         'model__min_samples_leaf': [3, 5, 10],
         'model__subsample': [0.9],
@@ -79,7 +80,7 @@ MODEL_CONFIG = {
     'do_nested_resampling': True, 
     'monitor' : monitor, 
     'path' : RESULTS_DIR, 
-    'fname_cv' : 'test'}
+    'fname_cv' : 'gb_common_genes'}
 
 # validation_fraction=0.1 as a mean to inclued early stopping
 gb_pipeline_steps = [('model', GradientBoostingSurvivalAnalysis())]

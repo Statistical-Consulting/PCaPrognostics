@@ -56,12 +56,14 @@ nested_resampling <- function(outer_split, blocks) {
     foldid = inner_indcs,
     lambda.type = "lambda.1se",
     type.measure = "deviance",
-    mcontrol = missing.control(handle.missingdata = "ignore")
+    mcontrol = missing.control(handle.missingdata = "impute.offset"), 
+    impute.offset.cases = "available.cases", 
+    select.available.cases = "max"
   )
   
   # Predict on the outer test set
   if (any(is.na(x_test_outer))) {
-    outer_predictions <- predict(prio_lasso, newdata = x_test_outer, type = "response", handle.missingtestdata = c("set.zero"))
+    outer_predictions <- predict(prio_lasso, newdata = x_test_outer, type = "response", handle.missingtestdata = c("impute.block"))
   } 
   else {
     outer_predictions <- predict(prio_lasso, newdata = x_test_outer, type = "response", handle.missingtestdata = c("none"))
@@ -74,9 +76,9 @@ nested_resampling <- function(outer_split, blocks) {
   outer_cindex
 }
 
-df_blockwise_data = read_csv('models/playground_tbd/df_block_data.csv', lazy = TRUE)
-df_blockwise_indcs = read_csv('models/playground_tbd/df_block_indices.csv')
-df_pData = read_csv('data/merged_data/pData/original/merged_original_pData.csv')
+df_blockwise_data = read_csv('models/prio_lasso/df_block_data.csv', lazy = TRUE)
+df_blockwise_indcs = read_csv('models/prio_lasso/df_block_indices.csv')
+df_pData = read_csv('data/merged_data/pData/imputed/merged_imputed_pData.csv')
 df_pData$MONTH_TO_BCR <- as.numeric(as.character(df_pData$MONTH_TO_BCR))
 df_pData$MONTH_TO_BCR[df_pData$MONTH_TO_BCR == 0] <- 0.0001
 
