@@ -121,7 +121,7 @@ y_test_outer <- Surv(outer_test$MONTH_TO_BCR, outer_test$BCR_STATUS)
 
   test_preds <- predict(best_mod, X_test_outer)
   outer_cindex <- SurvMetrics::Cindex(y_test_outer, test_preds)
-  
+  print(outer_cindex)
   outer_perf[i, ] <- c(test_cohort, outer_cindex)
 }
 
@@ -130,6 +130,4 @@ print(outer_perf)
 
 
 # ------------------------------------------------------------- Tuning + fitting of final model
-#final_best_hps <- do_resampling(df_pData, hyper_grid)
-# todo: insert HPs from above + Remove irrelevant cols
-#final_model <- rfsrc(Surv(MONTH_TO_BCR, BCR_STATUS) ~ ., data = df_pData)
+final_model <- do_resampling(data)
