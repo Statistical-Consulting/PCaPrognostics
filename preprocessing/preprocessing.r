@@ -250,7 +250,7 @@ main_processing <- function(rds_file_names) {
   # Define relevant columns
   rel_cols <- c('AGE', 'TISSUE', 'PATH_T_STAGE', 'GLEASON_SCORE', 
                 'PRE_OPERATIVE_PSA', 'MONTH_TO_BCR', 'CLIN_T_STAGE', 'BCR_STATUS')
-  numeric_cols <- c('AGE', 'PRE_OPERATIVE_PSA')
+  numeric_cols <- c('AGE', 'PRE_OPERATIVE_PSA', 'GLEASON_SCORE')
   
   # Load cohorts
   cohorts <- load_cohorts(rds_file_names)
