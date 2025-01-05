@@ -409,7 +409,79 @@ process_test_cohorts <- function(test_rds_file) {
   ))
 }
 
-# Main function that coordinates both processes
+# Function to process and save risk scores
+process_risk_scores <- function(rds_file_path) {
+  # Read the RDS file
+  risk_scores <- readRDS(file.path(".", "data", rds_file_path))
+  
+  # Create all scores vector (merge all cohorts)
+  all_scores <- unlist(risk_scores)
+  
+  # Create train data scores (all except TCGA_PRAD and UKD2)
+  train_cohorts <- setdiff(names(risk_scores), c("TCGA_PRAD", "UKD2"))
+  train_data_scores <- unlist(risk_scores[train_cohorts])
+  
+  # Create test data scores (only TCGA_PRAD and UKD2)
+  test_cohorts <- c("TCGA_PRAD", "UKD2")
+  test_data_scores <- unlist(risk_scores[test_cohorts])
+  
+  # Create data frames with proper sample IDs including cohort names
+  all_scores_df <- data.frame(
+    sample_id = names(all_scores),
+    risk_score = all_scores,
+    stringsAsFactors = FALSE
+  )
+  
+  # Add cohort prefix to sample IDs where missing
+  add_cohort_prefix <- function(scores_vector) {
+    names_with_prefix <- sapply(names(scores_vector), function(name) {
+      # Get cohort name from the list structure
+      cohort <- names(risk_scores)[sapply(risk_scores, function(x) name %in% names(x))]
+      if (!grepl(paste0("^", cohort), name)) {
+        return(paste(cohort, name, sep="_"))
+      }
+      return(name)
+    })
+    return(names_with_prefix)
+  }
+  
+  all_scores_df$sample_id <- add_cohort_prefix(all_scores)
+  
+  train_scores_df <- data.frame(
+    sample_id = add_cohort_prefix(train_data_scores),
+    risk_score = train_data_scores,
+    stringsAsFactors = FALSE
+  )
+  
+  test_scores_df <- data.frame(
+    sample_id = add_cohort_prefix(test_data_scores),
+    risk_score = test_data_scores,
+    stringsAsFactors = FALSE
+  )
+  
+  # Create directory for scores
+  scores_dir <- file.path(".", "data", "scores")
+  dir.create(scores_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # Save CSV files
+  write.csv(all_scores_df, 
+            file.path(scores_dir, "all_scores.csv"), 
+            row.names = FALSE)
+  write.csv(train_scores_df, 
+            file.path(scores_dir, "train_scores.csv"), 
+            row.names = FALSE)
+  write.csv(test_scores_df, 
+            file.path(scores_dir, "test_scores.csv"), 
+            row.names = FALSE)
+  
+  return(list(
+    all_scores = all_scores_df,
+    train_scores = train_scores_df, 
+    test_scores = test_scores_df
+  ))
+}
+
+# Main function that runs all processes
 main <- function(rds_file_names, test_rds_file) {
   # Run original preprocessing
   result <- main_processing(rds_file_names)
@@ -417,10 +489,14 @@ main <- function(rds_file_names, test_rds_file) {
   # Process test cohorts
   test_result <- process_test_cohorts(test_rds_file)
   
+  # Process risk scores
+  risk_scores_result <- process_risk_scores("Revised_ProstaTrend.Rds")
+  
   # Return combined results
   return(list(
     training = result,
-    test = test_result
+    test = test_result,
+    risk_scores = risk_scores_result
   ))
 }
 
