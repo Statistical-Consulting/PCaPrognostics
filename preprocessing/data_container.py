@@ -95,6 +95,19 @@ class DataContainer:
         except Exception as e:
             logger.error(f"Error loading data: {str(e)}")
             raise
+        
+    def load_val_data(self): 
+        loader = DataLoader(self.project_root)
+        # TODO: adapt for testing cohorts
+        X, pdata = loader.get_merged_data(
+                gene_type=self.config['gene_type'],
+                use_imputed=self.config['use_imputed']
+            )
+        y = loader.prepare_survival_data(pdata)
+
+        return X, pdata 
+        
+        
 
     def get_groups(self):
         """Return cohort labels"""
