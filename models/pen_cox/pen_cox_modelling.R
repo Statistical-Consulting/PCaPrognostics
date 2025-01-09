@@ -58,7 +58,9 @@ do_resampling <- function(data) {
 
 prepare_data <- function(use_exprs, use_pData, vars_pData = NA){
     if(use_exprs){
-        exprs_data <- as.data.frame(read_csv('data/merged_data/exprs/intersection/exprs_intersect.csv', lazy = TRUE))
+        #exprs_data <- as.data.frame(read_csv('data/merged_data/exprs/intersection/exprs_intersect.csv', lazy = TRUE))
+        #exprs_data <- as.data.frame(read_csv('data/merged_data/exprs/common_genes/common_genes_knn_imputed', lazy = TRUE))
+        exprs_data <- as.data.frame(read_csv('data/scores/train_scores.csv', lazy = TRUE))
         exprs_data[, 1] <- NULL
     }
     df_pData = read.csv2('data/merged_data/pData/imputed/merged_imputed_pData.csv', sep = ',')
