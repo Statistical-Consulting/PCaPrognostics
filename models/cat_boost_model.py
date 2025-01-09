@@ -50,8 +50,9 @@ class CatBoostModel(BaseEstimator, RegressorMixin):
             y['y_upper'] = np.where(y['status'], y['time'], -1)
             y_fin = y.loc[:,['y_lower','y_upper']]
         
-        for col in self.cat_features:
-            X.loc[:, col] = X.loc[:,col].astype('category')
+        if self.cat_features is not None: 
+            for col in self.cat_features:
+                X.loc[:, col] = X.loc[:,col].astype('category')
         
         #data = pd.concat([X, y], dim = 1)
         #print(data.info())
