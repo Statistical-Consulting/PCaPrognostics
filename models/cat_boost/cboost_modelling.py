@@ -6,10 +6,15 @@ from pathlib import Path
 import logging
 from catboost import CatBoostRegressor, Pool
 
-# Setup paths
+# Setup paths for Windows
 PROJECT_ROOT =  os.getcwd()
+
+# Set up path for Mac
+# PROJECT_ROOT = str(Path(os.getcwd()).parent.parent)
+
 if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
+    
 
 # Setup directories
 RESULTS_DIR = os.path.join(Path(__file__).parent.resolve(), 'results_cox')
@@ -26,6 +31,8 @@ from lifelines.utils import concordance_index
 from sklearn.utils.validation import check_X_y, check_is_fitted
 from sklearn.base import BaseEstimator, RegressorMixin
 from models.cat_boost_model import CatBoostModel
+from utils.feature_selection import FoldAwareSelectFromModel
+from sklearn.compose import ColumnTransformer
 
 
 # Setup logging
@@ -43,16 +50,21 @@ DATA_CONFIG = {
     'select_random' : False, 
     'use_cohorts': False, 
     'requires_ohenc' : False, 
-    'only_pData': False, 
-    'clinical_covs' : ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA']
+    # Auf True wenn NUR pDaten verwendet werden sollen
+    'only_pData': False
+    # Nur benötigt wenn pDaten mitgefitten werden sollen
+    #'clinical_covs' : ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA']
 }
-
-# validation_fraction=0.1 as a mean to inclued early stopping
-gb_pipeline_steps = [('model', CatBoostModel())]
-
 
 mp = ModellingProcess()
 mp.prepare_data(DATA_CONFIG, PROJECT_ROOT) 
+
+# pipe steps für modelle ohne pDaten
+pipe_steps = [('model', CatBoostModel(cat_features=None))]
+
+# pipe steps für modelle mit pDaten
+# pipe_steps = [('model', CatBoostModel())]
+
 
 # # Model configuration
 MODEL_CONFIG = {
@@ -67,6 +79,7 @@ MODEL_CONFIG = {
     'refit': True, 
     'do_nested_resampling': True, 
     'path' : RESULTS_DIR, 
-    'fname_cv' : 'cboost_inter_pData'}
+    # TODO: WICHTIG: Ändern pro Modell; Dateiname des Modells
+    'fname_cv' : 'test'}
 
-nstd_res_result = mp.do_modelling(gb_pipeline_steps, MODEL_CONFIG)
+nstd_res_result = mp.do_modelling(pipe_steps, MODEL_CONFIG)
