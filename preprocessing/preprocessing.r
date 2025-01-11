@@ -324,8 +324,8 @@ main_processing <- function(rds_file_names) {
   
 process_test_cohorts <- function(test_rds_file) {
   # Define numeric columns for standardization
-  numeric_cols <- c('AGE', 'PRE_OPERATIVE_PSA')
-  
+  numeric_cols <- c('AGE', 'PRE_OPERATIVE_PSA', 'GLEASON_SCORE')
+
   # Load test cohorts
   test_cohorts <- readRDS(file.path(".", "data", test_rds_file))
   
@@ -391,21 +391,81 @@ process_test_cohorts <- function(test_rds_file) {
   
   # Filter test expression data for genes present in training data
   training_intersect <- read.csv(file.path(".", "data", "merged_data", "exprs", "intersection", "exprs_intersect.csv"), row.names=1)
+  training_common_genes <- read.csv(file.path(".", "data", "merged_data", "exprs", "common_genes", "common_genes_knn_imputed.csv"), row.names=1)
+  
   training_genes <- colnames(training_intersect)
   final_genes <- intersect(rownames(test_exprs), training_genes)
   test_exprs_final <- test_exprs[final_genes,]
   
+  # Create copies for test data imputation
+  test_intersect_imputed <- training_intersect
+  test_common_genes_imputed <- training_common_genes
+  
+  # For each test cohort
+  # For each test cohort
+  for(i in seq_along(processed_test_cohorts)) {
+    cohort_exprs <- processed_test_cohorts[[i]]$exprs
+    cohort_name <- paste0("test_cohort_", i)
+    
+    # Für jeden Patienten in der Kohorte
+    for(j in 1:ncol(cohort_exprs)) {
+      # For intersection genes
+      common_genes_intersect <- intersect(rownames(cohort_exprs), colnames(test_intersect_imputed))
+      new_row <- data.frame(matrix(NA, nrow=1, ncol=ncol(test_intersect_imputed)))
+      colnames(new_row) <- colnames(test_intersect_imputed)
+      new_row[1, common_genes_intersect] <- as.numeric(cohort_exprs[common_genes_intersect, j])
+      rownames(new_row) <- paste0(cohort_name, "_patient_", j)
+      test_intersect_imputed <- rbind(test_intersect_imputed, new_row)
+      
+      # For common genes
+      common_genes_all <- intersect(rownames(cohort_exprs), colnames(test_common_genes_imputed))
+      new_row <- data.frame(matrix(NA, nrow=1, ncol=ncol(test_common_genes_imputed)))
+      colnames(new_row) <- colnames(test_common_genes_imputed)
+      new_row[1, common_genes_all] <- as.numeric(cohort_exprs[common_genes_all, j])
+      rownames(new_row) <- paste0(cohort_name, "_patient_", j)
+      test_common_genes_imputed <- rbind(test_common_genes_imputed, new_row)
+    }
+  }
+  
+  # Perform KNN imputation on both datasets
+  # For intersection genes
+  test_intersect_matrix <- as.matrix(test_intersect_imputed)
+  imputed_intersect <- impute.knn(test_intersect_matrix, k=35)
+  test_intersect_imputed <- as.data.frame(imputed_intersect$data)
+  
+  # For common genes  
+  test_common_matrix <- as.matrix(test_common_genes_imputed)
+  imputed_common <- impute.knn(test_common_matrix, k=35)
+  test_common_genes_imputed <- as.data.frame(imputed_common$data)
+  
+  # Remove training observations (keep only test cohort rows)
+  test_cohort_rows <- grep("^test_cohort_", rownames(test_intersect_imputed))
+  test_intersect_imputed <- test_intersect_imputed[test_cohort_rows,]
+  test_common_genes_imputed <- test_common_genes_imputed[test_cohort_rows,]
+  
   # Save merged test data
-  write.csv(test_pdata, file.path(".", "data", "merged_data", "pData", "original", "test_pData.csv"))
+  write.csv(test_pdata, 
+            file.path(".", "data", "merged_data", "pData", "original", "test_pData.csv"))
   
   # Save intersection test genes
   write.csv(t(test_exprs_final), 
             file.path(".", "data", "merged_data", "exprs", "intersection", "intersect_test_genes.csv"),
             row.names = TRUE)
   
+  # Save the imputed test data
+  write.csv(test_intersect_imputed, 
+            file.path(".", "data", "merged_data", "exprs", "intersection", "intersect_test_genes_imputed.csv"),
+            row.names = TRUE)
+  
+  write.csv(test_common_genes_imputed,
+            file.path(".", "data", "merged_data", "exprs", "common_genes", "common_genes_test_imputed.csv"), 
+            row.names = TRUE)
+  
   return(list(
     test_pdata = test_pdata,
-    test_exprs = test_exprs_final
+    test_exprs = test_exprs_final,
+    test_exprs_common_imputed = test_common_genes_imputed,
+    test_exprs_intersect_imputed = test_intersect_imputed
   ))
 }
 
