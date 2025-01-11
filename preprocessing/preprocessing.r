@@ -187,7 +187,7 @@ create_merged_exprs_for_imputation <- function(cohorts_dict) {
   
   return(all_exprs_merged)
 }
-# Funciton to merge the pData cohorts data frames
+# Function to merge the pData cohorts data frames
 merge_pdata <- function(processed_cohorts, rel_cols) {
   # Get pData from all cohorts and replace PATH_T_STAGE for Belast cohort by
   # CLIN_T_STAGE (as discussed with Markus)
@@ -333,10 +333,6 @@ process_test_cohorts <- function(test_rds_file) {
   processed_test_cohorts <- lapply(test_cohorts, function(eset) {
     # Extract and process pData
     pdata <- as.data.frame(pData(eset))
-    if(all(is.na(pdata$BCR_STATUS)) && "DOD_STATUS" %in% colnames(pdata)) {
-      pdata$BCR_STATUS <- pdata$DOD_STATUS
-    }
-    
     # Standardize numeric pData
     pdata <- standardize_pdata_numeric(pdata, numeric_cols)
     
@@ -382,6 +378,13 @@ process_test_cohorts <- function(test_rds_file) {
   
   # Merge test pData
   test_pdata <- do.call(rbind, lapply(processed_test_cohorts, function(x) x$pData))
+  
+  # Impute NA values in PRE_OPERATIVE_PSA with median
+  psa_median <- median(test_pdata$PRE_OPERATIVE_PSA, na.rm=TRUE)
+  test_pdata$PRE_OPERATIVE_PSA[is.na(test_pdata$PRE_OPERATIVE_PSA)] <- psa_median
+  
+  test_pdata[is.na(test_pdata$MONTH_TO_BCR),"MONTH_TO_BCR"] <- test_pdata[is.na(test_pdata$MONTH_TO_BCR),]$MONTH_TO_DOD
+  test_pdata[is.na(test_pdata$MONTH_TO_BCR),"BCR_STATUS"] <- test_pdata[is.na(test_pdata$MONTH_TO_BCR),]$DOD_STATUS
   
   # Create merged expression matrix for test cohorts
   test_exprs_list <- lapply(processed_test_cohorts, function(x) x$exprs)
