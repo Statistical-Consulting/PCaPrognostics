@@ -384,7 +384,7 @@ process_test_cohorts <- function(test_rds_file) {
   test_pdata$PRE_OPERATIVE_PSA[is.na(test_pdata$PRE_OPERATIVE_PSA)] <- psa_median
   
   test_pdata[is.na(test_pdata$MONTH_TO_BCR),"MONTH_TO_BCR"] <- test_pdata[is.na(test_pdata$MONTH_TO_BCR),]$MONTH_TO_DOD
-  test_pdata[is.na(test_pdata$MONTH_TO_BCR),"BCR_STATUS"] <- test_pdata[is.na(test_pdata$MONTH_TO_BCR),]$DOD_STATUS
+  test_pdata[is.na(test_pdata$BCR_STATUS),"BCR_STATUS"] <- test_pdata[is.na(test_pdata$MONTH_TO_BCR),]$DOD_STATUS
   
   # Create merged expression matrix for test cohorts
   test_exprs_list <- lapply(processed_test_cohorts, function(x) x$exprs)
@@ -394,7 +394,7 @@ process_test_cohorts <- function(test_rds_file) {
   
   # Filter test expression data for genes present in training data
   training_intersect <- read.csv(file.path(".", "data", "merged_data", "exprs", "intersection", "exprs_intersect.csv"), row.names=1)
-  training_common_genes <- read.csv(file.path(".", "data", "merged_data", "exprs", "common_genes", "common_genes_knn_imputed.csv"), row.names=1)
+  training_common_genes <- read.csv(file.path(".", "data", "merged_data", "exprs", "common_genes", "common_genes.csv"), row.names=1)
   
   training_genes <- colnames(training_intersect)
   final_genes <- intersect(rownames(test_exprs), training_genes)
