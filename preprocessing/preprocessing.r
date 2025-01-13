@@ -384,7 +384,7 @@ process_test_cohorts <- function(test_rds_file) {
   test_pdata$PRE_OPERATIVE_PSA[is.na(test_pdata$PRE_OPERATIVE_PSA)] <- psa_median
   
   test_pdata[is.na(test_pdata$MONTH_TO_BCR),"MONTH_TO_BCR"] <- test_pdata[is.na(test_pdata$MONTH_TO_BCR),]$MONTH_TO_DOD
-  test_pdata[is.na(test_pdata$BCR_STATUS),"BCR_STATUS"] <- test_pdata[is.na(test_pdata$MONTH_TO_BCR),]$DOD_STATUS
+  test_pdata[is.na(test_pdata$BCR_STATUS), "BCR_STATUS"] <- test_pdata[is.na(test_pdata$BCR_STATUS), ]$DOD_STATUS
   
   # Create merged expression matrix for test cohorts
   test_exprs_list <- lapply(processed_test_cohorts, function(x) x$exprs)
