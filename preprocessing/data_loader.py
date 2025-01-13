@@ -91,6 +91,35 @@ class DataLoader:
         self.merged_pdata_imputed = self.load_csv_files(
             os.path.join(merged_pdata_path, 'imputed')
         )
+    
+    
+    def get_merged_test_data(self, gene_type='intersection', use_imputed=True): 
+        exprs_path = os.path.join(self.merged_data_path, 'exprs')
+        # if gene_type == 'all_genes':
+        #     exprs = self.load_csv_files(
+        #         os.path.join(exprs_path, 'all_genes')
+        #         )['all_genes.csv']
+        if gene_type == 'common_genes':
+            exprs = self.load_csv_files(os.path.join(exprs_path, 'common_genes'))[
+                'common_genes_test_imputed.csv'
+            ]
+        elif gene_type == 'autoencoder': 
+            exprs = self.load_csv_files(os.path.join(exprs_path, 'autoencoder'))[
+                'autoencoded_genes_test.csv'
+            ]
+        else :  # intersection
+            exprs = self.load_csv_files(os.path.join(exprs_path, 'intersection'))['intersect_test_genes_imputed.csv']
+
+        merged_pdata_path = os.path.join(self.merged_data_path, 'pData')
+        
+        pdata =  self.load_csv_files(os.path.join(merged_pdata_path, 'imputed'))['test_pData.csv'] \
+            if use_imputed else self.load_csv_files(
+            os.path.join(merged_pdata_path, 'original')
+        )['test_pData.csv']
+            
+        
+        return exprs, pdata
+        
         
     
     def get_merged_data(self, gene_type='intersection', use_imputed=True):

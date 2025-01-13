@@ -27,11 +27,49 @@ class DataContainer:
 
         # Update with provided config
         if data_config is not None:
-            self.config.update(data_config)
+            self.config = data_config
 
         self.project_root = project_root
         self.pca = None
         self.groups = None
+        
+    def load_test_data(self): 
+        loader = DataLoader(self.project_root)
+        # get merged test data
+        X, pdata = loader.get_merged_test_data(gene_type=self.config['gene_type'],
+                use_imputed=self.config['use_imputed'])
+        
+        y = loader.prepare_survival_data(pdata)
+                
+        self.test_groups = np.array([idx.split('.')[0] for idx in X.index])
+        
+        if self.config.get('clinical_covs', None) is not None:
+            logger.info('Found clinical data specification')
+            ### TODO: Remove ------------------------------------------
+            pdata['AGE'] = pd.to_numeric(pdata['AGE'], errors='coerce')
+            
+            
+            clin_data = pdata.loc[:, self.config['clinical_covs']] 
+            clin_data.index = pdata.index
+            X.index = pdata.index
+            cat_cols = clin_data.select_dtypes(exclude=['number']).columns
+            num_cols = clin_data.select_dtypes(exclude=['object']).columns
+            clin_data_cat = clin_data.loc[:, cat_cols]
+            if self.config.get('requires_ohenc', True) is True:
+                ohc = OneHotEncoder()
+                clin_data_cat = ohc.fit_transform(clin_data_cat)
+                clin_data_cat = pd.DataFrame.sparse.from_spmatrix(clin_data_cat, columns=ohc.get_feature_names_out()).set_index(X.index)
+            clin_data_num = clin_data.loc[:, num_cols]
+            
+            if self.config.get('only_pData', False) is not False: 
+                logger.info('Only uses pData')
+                X = pd.concat([clin_data_cat, clin_data_num], axis = 1)
+            else:
+                X = pd.concat([clin_data_cat, clin_data_num, X], axis = 1)
+
+        logger.info(f"Loaded data: {X.shape[0]} samples, {X.shape[1]} features")
+        return X, y
+        
 
     def load_data(self):
         """Load and preprocess data"""
@@ -112,6 +150,10 @@ class DataContainer:
     def get_groups(self):
         """Return cohort labels"""
         return self.groups
+    
+    def get_test_groups(self):
+        """Return cohort labels"""
+        return self.test_groups
 
     def get_train_val_split(self, X, y):
         """Create train/validation split"""
