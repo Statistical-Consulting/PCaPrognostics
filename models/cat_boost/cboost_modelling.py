@@ -51,16 +51,16 @@ DATA_CONFIG = {
     'use_cohorts': False, 
     'requires_ohenc' : False, 
     # Auf True wenn NUR pDaten verwendet werden sollen
-    'only_pData': False
+    'only_pData': False,
     # Nur benötigt wenn pDaten mitgefitten werden sollen
-    #'clinical_covs' : ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA']
+    'clinical_covs' : ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA']
 }
 
 mp = ModellingProcess()
 mp.prepare_data(DATA_CONFIG, PROJECT_ROOT) 
 
 # pipe steps für modelle ohne pDaten
-pipe_steps = [('model', CatBoostModel(cat_features=None))]
+pipe_steps = [('model', CatBoostModel())]
 
 # pipe steps für modelle mit pDaten
 # pipe_steps = [('model', CatBoostModel())]
@@ -71,15 +71,15 @@ MODEL_CONFIG = {
     'params_cv': {
         'model__iterations': [500],
         'model__learning_rate': [0.1],
-        'model__depth': [3, 5, 10],
-        'model__min_data_in_leaf': [3, 5, 10],
+        'model__depth': [3, 5, 10, 15],
+        'model__min_data_in_leaf': [3, 5, 10, 15],
         'model__nan_mode' : ["Forbidden"], 
-        'model__rsm' : [0.1]
+        'model__rsm' : [0.05, 0.1]
         },
     'refit': True, 
     'do_nested_resampling': True, 
     'path' : RESULTS_DIR, 
     # TODO: WICHTIG: Ändern pro Modell; Dateiname des Modells
-    'fname_cv' : 'test'}
+    'fname_cv' : 'cboost_inter_pData'}
 
 nstd_res_result = mp.do_modelling(pipe_steps, MODEL_CONFIG)

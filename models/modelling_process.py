@@ -41,31 +41,34 @@ class ModellingProcess():
         self.X, self.y = self.dc.load_data()
         self.groups = self.dc.get_groups()
     
-    def get_testing_cohorts(self): 
-        ind_X, ind_y = self.dc.load_val_cohrts()
+    def prepare_test_data(self, data_config, root): 
+        self.dc = DataContainer(data_config=data_config, project_root=root)
+        self.X_test, self.y_test = self.dc.load_test_data()
+        self.test_groups = self.dc.get_test_groups()
         
-    def do_external_validation(self, model_path, ov_name = None): 
-        if self.cmplt_pipeline is None:
-            logger.warning("Didn't find any model/pipeline")
-            self.load_pipe(model_path)     
-        ind_X, ind_y = self.dc.load_val_cohrts()
         
-        # TODO: Model/Pipeline.score
-        # sth. along the line
-        perf1 = self.cmplt_pipeline.score(ind_X, ind_y)
-        perf2 = self.cmplt_pipeline.score(ind_X, ind_y)
+    # def do_external_validation(self, model_path, ov_name = None): 
+    #     if self.cmplt_pipeline is None:
+    #         logger.warning("Didn't find any model/pipeline")
+    #         self.load_pipe(model_path)     
+    #     ind_X, ind_y = self.dc.load_val_cohrts()
+        
+    #     # TODO: Model/Pipeline.score
+    #     # sth. along the line
+    #     perf1 = self.cmplt_pipeline.score(ind_X, ind_y)
+    #     perf2 = self.cmplt_pipeline.score(ind_X, ind_y)
 
         
-        if ov_name is not None: 
-            file_path = os.path.join(self.path, ov_name)
+    #     if ov_name is not None: 
+    #         file_path = os.path.join(self.path, ov_name)
 
-            with open(file_path, 'r') as file:
-                    ov = file.read()
-            print("OV loaded successfully.")
-            # add entry for resepctive cells
-            ov.loc[self.fname_cv: "Performance TCH 1"] = perf1
-            ov.loc[self.fname_cv: "Performance TCH 2"] = perf2
-        # save file
+    #         with open(file_path, 'r') as file:
+    #                 ov = file.read()
+    #         print("OV loaded successfully.")
+    #         # add entry for resepctive cells
+    #         ov.loc[self.fname_cv: "Performance TCH 1"] = perf1
+    #         ov.loc[self.fname_cv: "Performance TCH 2"] = perf2
+    #     # save file
     
     def do_modelling(self, pipeline_steps, config): 
         self._set_seed()
