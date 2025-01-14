@@ -29,20 +29,20 @@ class Autoencoder(nn.Module):
 
         # Encoder
         self.encoder = nn.Sequential(
-            nn.Linear(inp_dim, 400),
+            nn.Linear(inp_dim, 1024),
             nn.ReLU(),
-            nn.Linear(400, 200),
+            nn.Linear(1024, 612),
             nn.ReLU(),
-            nn.Linear(200, latent_dim)
+            nn.Linear(612, latent_dim)
         )
 
         # Decoder
         self.decoder = nn.Sequential(
-            nn.Linear(latent_dim, 200),
+            nn.Linear(latent_dim, 612),
             nn.ReLU(),
-            nn.Linear(200, 400),
+            nn.Linear(612, 1024),
             nn.ReLU(),
-            nn.Linear(400, inp_dim),
+            nn.Linear(1024, inp_dim),
             nn.Tanh()
         )
 
@@ -119,7 +119,7 @@ class FoldAwareAE(BaseEstimator, TransformerMixin):
         #print("new transform --------------------------------")
         # Ensure the estimator is fitted
         root = os.path.dirname(os.path.dirname(__file__))
-        root = os.path.join(root, 'pretrnd_models_ae', 'models', 'models')
+        root = os.path.join(root, 'pretrnd_models_ae', 'models')
         #if root not in sys.path:
         #    sys.path.append(root)
         #print(X.info())
