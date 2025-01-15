@@ -10,6 +10,7 @@ class DataLoader:
         self.data_path = os.path.join(base_path, 'data')
         self.cohort_data_path = os.path.join(self.data_path, 'cohort_data')
         self.merged_data_path = os.path.join(self.data_path, 'merged_data')
+        self.score_path = os.path.join(self.data_path, 'scores')
 
         # Initialize data containers
         self.exprs_data = None
@@ -107,6 +108,8 @@ class DataLoader:
             exprs = self.load_csv_files(os.path.join(exprs_path, 'autoencoder'))[
                 'autoencoded_genes_test.csv'
             ]
+        elif gene_type =='scores': 
+            exprs = self.load_csv_files(self.score_path)['test_scores.csv']
         else :  # intersection
             exprs = self.load_csv_files(os.path.join(exprs_path, 'intersection'))['intersect_test_genes_imputed.csv']
 
@@ -134,6 +137,9 @@ class DataLoader:
             exprs = self.load_csv_files(os.path.join(exprs_path, 'common_genes'))[
                 'common_genes_knn_imputed.csv' if use_imputed else 'common_genes.csv'
             ]
+        elif gene_type =='scores': 
+            exprs = self.load_csv_files(self.score_path)['train_scores.csv']
+            
         else:  # intersection
             exprs = self.load_csv_files(os.path.join(exprs_path, 'intersection'))['exprs_intersect.csv']
 

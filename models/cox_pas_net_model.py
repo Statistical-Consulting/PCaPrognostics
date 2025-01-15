@@ -406,9 +406,9 @@ class Cox_PASNet_Model(BaseEstimator, RegressorMixin):
         event_field = 'status' if 'status' in y.dtype.names else 'event'
         #y_event = y[event_field] 
         y_time = torch.FloatTensor(y['time'].copy()).to(self.device)
-        y_event = np.ascontiguousarray(y[event_field].copy()).astype(np.float32).to_device(self.device)
+        y_event = np.ascontiguousarray(y[event_field].copy()).astype(np.float32)
         y_event = torch.from_numpy(y_event).to(self.device)
-        return c_index(preds, y_time, y_event)
+        return c_index(preds, y_time, y_event).cpu().detach().numpy()
 
     # def get_params(self, deep=True):
     #     return {
@@ -436,25 +436,25 @@ class Cox_PASNet_Model(BaseEstimator, RegressorMixin):
         y_train = pd.DataFrame(y_train).set_index(X_train.index)
         #print(y_train)
 
-        data_train = pd.concat([X_train, y_train], axis = 1, ignore_index=False) 
+        data_train = pd.concat([X_train, y_train], axis = 1, ignore_index=False)
         #print(data_train.loc[:, 'time'])
         X_train, times_train, events_train, pdata_train = self._sort_data(data_train, event_field_train, 'time', self.clin_covs)
-        
+
         X_tensor_train = torch.FloatTensor(X_train).to(self.device)
         time_tensor_train = torch.FloatTensor(times_train).to(self.device)
-        event_tensor_train = np.ascontiguousarray(events_train).astype(np.float32).to_device(self.device)
+        event_tensor_train = np.ascontiguousarray(events_train).astype(np.float32)
         event_tensor_train = torch.from_numpy(event_tensor_train).to(self.device)
         pdata_tensor_train = torch.FloatTensor(pdata_train).to(self.device)
-        
+
         event_field_val = 'status' if 'status' in y_val.dtype.names else 'event'
         #event_field_val = 'BCR_STATUS'
         y_val = pd.DataFrame(y_val).set_index(X_val.index)
         data_val = pd.concat([X_val, y_val], axis = 1, ignore_index=False)
         X_val, times_val, events_val, pdata_val = self._sort_data(data_val, event_field_val, 'time', self.clin_covs)
-        
+
         X_tensor_val = torch.FloatTensor(X_val).to(self.device)
         time_tensor_val = torch.FloatTensor(times_val).to(self.device)
-        event_tensor_val= np.ascontiguousarray(events_val).astype(np.float32).to_device(self.device)
+        event_tensor_val= np.ascontiguousarray(events_val).astype(np.float32)
         event_tensor_val = torch.FloatTensor(event_tensor_val).to(self.device)
         pdata_tensor_val = torch.FloatTensor(pdata_val).to(self.device)
 
@@ -466,9 +466,8 @@ class Cox_PASNet_Model(BaseEstimator, RegressorMixin):
         # time_tensor_val = torch.FloatTensor(times_val).to(self.device)
         # event_tensor_val = torch.FloatTensor(events_val).to(self.device)
 
-        
+
         return X_tensor_train, pdata_tensor_train, time_tensor_train, event_tensor_train, X_tensor_val, pdata_tensor_val, time_tensor_val, event_tensor_val
-    
 
     def _sort_data(self, data, event_field, times_field, clin_vars = None):
         ''' sort the genomic and clinical data w.r.t. survival time (OS_MONTHS) in descending order

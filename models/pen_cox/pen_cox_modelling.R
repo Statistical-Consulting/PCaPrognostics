@@ -56,7 +56,7 @@ do_resampling <- function(data) {
 
 
 
-prepare_data <- function(use_exprs, use_pData, vars_pData = NA){
+prepare_data <- function(use_exprs, use_pData, vars_pData = NA, use_aenc = FALSE){
     if(use_exprs){
         #exprs_data <- as.data.frame(read_csv('data/merged_data/exprs/intersection/exprs_intersect.csv', lazy = TRUE))
         #exprs_data <- as.data.frame(read_csv('data/merged_data/exprs/common_genes/common_genes_knn_imputed', lazy = TRUE))
@@ -68,6 +68,7 @@ prepare_data <- function(use_exprs, use_pData, vars_pData = NA){
     df_pData$MONTH_TO_BCR <- as.numeric(as.character(df_pData$MONTH_TO_BCR))
     df_pData$MONTH_TO_BCR[df_pData$MONTH_TO_BCR == 0] <- 0.0001
     cohort <- sub("\\..*", "", df_pData$X)
+    X = df_pData$X
     if(length(vars_pData) != 0){
         relevant_vars <- c('MONTH_TO_BCR', 'BCR_STATUS', vars_pData)
         df_pData <- df_pData[, relevant_vars]
@@ -85,25 +86,29 @@ prepare_data <- function(use_exprs, use_pData, vars_pData = NA){
         dmy <- dummyVars(" ~ .", data = cat_pData)
         ohenc_pData <- data.frame(predict(dmy, newdata = cat_pData))
 
-        df_pData <- cbind(num_pData, ohenc_pData, cohort)
+        df_pData <- cbind(num_pData, ohenc_pData, cohort, X)
     }
-    if(use_pData && use_exprs){
+    if(use_pData && use_exprs && !use_aenc){
         return(cbind(df_pData, exprs_data))
 
-    } else if (use_pData && !use_exprs) {
+    } else if (use_pData && !use_exprs && !use_aenc) {
        return(df_pData)
-    } else {
+    } else if (use_pData && use_aenc){
+        return(df_pData)
+    } else if (!use_pData && use_aenc){
         MONTH_TO_BCR <- df_pData$MONTH_TO_BCR
         BCR_STATUS <- df_pData$BCR_STATUS
-        return(cbind(MONTH_TO_BCR, BCR_STATUS, cohort, exprs_data))
+        X <- df_pData$X
+        df <- data.frame(MONTH_TO_BCR = MONTH_TO_BCR, BCR_STATUS = BCR_STATUS, X = X, cohort = cohort)
+        return(df)
     }
 }
 
-data = prepare_data(TRUE, TRUE, c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'))  
-print(str(data))
-
+use_aenc = FALSE
+data_cmplt = prepare_data(TRUE, TRUE, c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'), use_aenc = use_aenc)  
+print(str(data_cmplt))
 # ------------------------------------------------------------- Create Splits and grids for tuning
-outer_splits <- group_vfold_cv(data, group = cohort)
+outer_splits <- group_vfold_cv(data_cmplt, group = cohort)
 
 # ------------------------------------------------------------- Do nested resampling
 outer_perf = setNames(data.frame(matrix(ncol = 3, nrow = 9)), c("testing_cohort", "ci_se", "ci_min"))
@@ -115,26 +120,60 @@ for (i in seq_along(outer_splits$splits)) {
   test_cohort <- as.character(outer_test$cohort[1])
   print(test_cohort)
 
-  best_mod <- do_resampling(outer_train)
-  print(best_mod)
+if (use_aenc){
+    data_path <- paste0('pretrnd_models_ae\\csv\\' , test_cohort, '.csv') 
+    anec_data = read.csv(data_path) %>% mutate_if(is.character, factor)
+    #print(str(anec_data))
+
+    outer_train <- as.data.frame(outer_train)
+    outer_test <- as.data.frame(outer_test)
+    #print(str(outer_train))
+
+    outer_train = left_join(outer_train, anec_data, by = "X")
+    outer_test = left_join(outer_test, anec_data, by = "X")
+
+    #print(nrow(outer_train))
+    #print(ncol(outer_train))
+
+    #print(nrow(outer_test))
+    #print(ncol(outer_test))
+
+    outer_train <- as.data.frame(outer_train %>% select(-c(X)))
+    outer_test <- as.data.frame(outer_test %>% select(-c(X)))
+
+} 
+    outer_train <- as.data.frame(outer_train %>% select(-c(X)))
+    outer_test <- as.data.frame(outer_test %>% select(-c(X)))
+
+    best_mod <- do_resampling(outer_train)
+
 
 # modify this one 
 y_test_outer <- Surv(outer_test$MONTH_TO_BCR, outer_test$BCR_STATUS)
-  X_test_outer <- as.matrix(outer_test %>% select(-c(cohort, MONTH_TO_BCR, BCR_STATUS)))
+X_test_outer <- as.matrix(outer_test %>% select(-c(cohort, MONTH_TO_BCR, BCR_STATUS)))
 
-  test_preds_se <- predict(best_mod, X_test_outer,  s = 'lambda.1se')
-  test_preds_min <- predict(best_mod, X_test_outer,  s = 'lambda.min')
-  outer_cindex_se <- apply(test_preds_se, 2, glmnet::Cindex, y=y_test_outer)
-  outer_cindex_min <- apply(test_preds_min, 2, glmnet::Cindex, y=y_test_outer)
-  print(outer_cindex_se)
-  print(outer_cindex_min)
-  outer_perf[i, ] <- c(test_cohort, outer_cindex_se, outer_cindex_min)
+test_preds_se <- predict(best_mod, X_test_outer,  s = 'lambda.1se')
+test_preds_min <- predict(best_mod, X_test_outer,  s = 'lambda.min')
+outer_cindex_se <- apply(test_preds_se, 2, glmnet::Cindex, y=y_test_outer)
+outer_cindex_min <- apply(test_preds_min, 2, glmnet::Cindex, y=y_test_outer)
+print(outer_cindex_se)
+print(outer_cindex_min)
+outer_perf[i, ] <- c(test_cohort, outer_cindex_se, outer_cindex_min)
 }
 
 print(outer_perf)
 
-write.csv(outer_perf, "pen_lasso_exprs_inter_pData.csv")
+write.csv(outer_perf, "pen_score_pdata.csv")
 
-# ------------------------------------------------------------- Tuning + fitting of final model
-final_model <- do_resampling(data)
-save(final_model,file="pen_lasso_exprs_inter_pData.Rdata")
+# --------------------------------------------------------------- Tuning + fitting of final model with Aenc
+# data_path <- paste0('pretrnd_models_ae\\csv\\pretrnd_cmplt.csv') 
+# aenc_data <- read.csv(data_path) %>% mutate_if(is.character, factor)
+# aenc_data <- left_join(data_cmplt, aenc_data, by = "X")
+# str(aenc_data)
+# anec_data <- as.data.frame(aenc_data %>% select(-c(X)))
+# final_model <- do_resampling(anec_data)
+
+# # ------------------------------------------------------------- Tuning + fitting of final model
+data_cmplt <- as.data.frame(data_cmplt %>% select(-c(X)))
+final_model <- do_resampling(data_cmplt)
+save(final_model,file="pen_score_pdata.Rdata")

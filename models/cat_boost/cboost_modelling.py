@@ -60,7 +60,7 @@ mp = ModellingProcess()
 mp.prepare_data(DATA_CONFIG, PROJECT_ROOT) 
 
 # pipe steps für modelle ohne pDaten
-pipe_steps = [('model', CatBoostModel())]
+# pipe_steps = [('model', CatBoostModel(cat_features = None))]
 
 # pipe steps für modelle mit pDaten
 # pipe_steps = [('model', CatBoostModel())]
@@ -71,15 +71,58 @@ MODEL_CONFIG = {
     'params_cv': {
         'model__iterations': [500],
         'model__learning_rate': [0.1],
-        'model__depth': [3, 5, 10, 15],
-        'model__min_data_in_leaf': [3, 5, 10, 15],
+        'model__depth': [3, 5, 10],
+        'model__min_data_in_leaf': [3, 5, 10],
         'model__nan_mode' : ["Forbidden"], 
-        'model__rsm' : [0.05, 0.1]
+        'model__rsm' : [None]
         },
-    'refit': True, 
+    'refit': False, 
     'do_nested_resampling': True, 
     'path' : RESULTS_DIR, 
     # TODO: WICHTIG: Ändern pro Modell; Dateiname des Modells
-    'fname_cv' : 'cboost_inter_pData'}
+    'fname_cv' : 'cboost_autoencoder_pData'}
 
-nstd_res_result = mp.do_modelling(pipe_steps, MODEL_CONFIG)
+
+# MODEL_CONFIG = {
+#     'params_cv': {
+#         'model__iterations': [500],
+#         'model__learning_rate': [0.1],
+#         'model__depth': [3, 5],
+#         'model__min_data_in_leaf': [1, 3, 5, 10],
+#         'model__nan_mode' : ["Forbidden"], 
+#         'model__rsm' : [0.2]
+#         },
+#     'refit': True, 
+#     'do_nested_resampling': True, 
+#     'path' : RESULTS_DIR, 
+#     # TODO: WICHTIG: Ändern pro Modell; Dateiname des Modells
+#     'fname_cv' : 'cboost_pData'}
+
+
+from sklearn.compose import ColumnTransformer
+from utils.feature_selection import FoldAwareSelectFromModel, FoldAwareAE
+
+
+# Create the dynamic model selector
+#dynamic_selector = FoldAwareSelectFromModel(estimator=GradientBoostingSurvivalAnalysis(), threshold = "mean")
+#dynamic_selector = SelectFromModel(pretrained_gb)
+pdata_cols = ['TISSUE', 'AGE',
+       'GLEASON_SCORE', 'PRE_OPERATIVE_PSA']
+exprs_cols =  list(set(mp.X.columns) - set(pdata_cols))
+
+ae = FoldAwareAE()
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('feature_selection', ae, exprs_cols),  # Apply feature selection
+        ('other_features', 'passthrough', pdata_cols)         # Pass through other columns
+    ]
+)
+
+# Define the pipeline
+pipe_steps = [
+    ('preprocessor', preprocessor),
+    ('model', CatBoostModel(from_autoenc = True))]
+
+mp.do_modelling(pipe_steps, MODEL_CONFIG)
+
+#nstd_res_result = mp.do_modelling(pipe_steps, MODEL_CONFIG)

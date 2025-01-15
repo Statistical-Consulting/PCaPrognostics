@@ -33,11 +33,17 @@ class DataContainer:
         self.pca = None
         self.groups = None
         
-    def load_test_data(self): 
+    def load_test_data(self, cohort = None): 
         loader = DataLoader(self.project_root)
         # get merged test data
         X, pdata = loader.get_merged_test_data(gene_type=self.config['gene_type'],
                 use_imputed=self.config['use_imputed'])
+        
+        if cohort is not None: 
+            print(cohort)
+            X = X[X.index.str.startswith(cohort)]
+            pdata = pdata[pdata.index.str.startswith(cohort)]
+            print(pdata.info)
         
         y = loader.prepare_survival_data(pdata)
                 
@@ -56,9 +62,15 @@ class DataContainer:
             num_cols = clin_data.select_dtypes(exclude=['object']).columns
             clin_data_cat = clin_data.loc[:, cat_cols]
             if self.config.get('requires_ohenc', True) is True:
-                ohc = OneHotEncoder()
-                clin_data_cat = ohc.fit_transform(clin_data_cat)
-                clin_data_cat = pd.DataFrame.sparse.from_spmatrix(clin_data_cat, columns=ohc.get_feature_names_out()).set_index(X.index)
+                # TODO: Versatile machen
+                #ohc = OneHotEncoder()
+                #clin_data_cat = ohc.fit_transform(clin_data_cat)
+                #clin_data_cat = pd.DataFrame.sparse.from_spmatrix(clin_data_cat, columns=ohc.get_feature_names_out()).set_index(X.index)
+                clin_data_cat['TISSUE_FFPE'] = 0
+                clin_data_cat['TISSUE_Fresh_frozen'] = 1
+                clin_data_cat['TISSUE_Snap_frozen'] = 0
+                
+                
             clin_data_num = clin_data.loc[:, num_cols]
             
             if self.config.get('only_pData', False) is not False: 

@@ -106,7 +106,8 @@ do_resampling <- function(data, hps, curr_coh) {
 # ------------------------------------------------------------- Load data
 prepare_data <- function(use_exprs, use_pData, vars_pData = NA, use_aenc = FALSE){
     if(use_exprs){
-        exprs_data <- as.data.frame(read_csv('data/merged_data/exprs/common_genes/common_genes_knn_imputed.csv', lazy = TRUE))
+        exprs_data <- as.data.frame(read_csv('data/scores/train_scores.csv', lazy = TRUE))
+        #exprs_data <- as.data.frame(read_csv('data/merged_data/exprs/common_genes/common_genes_knn_imputed.csv', lazy = TRUE))
         exprs_data[, 1] <- NULL
     }
         df_pData = read.csv2('data/merged_data/pData/imputed/merged_imputed_pData.csv', sep = ',')
@@ -127,7 +128,6 @@ prepare_data <- function(use_exprs, use_pData, vars_pData = NA, use_aenc = FALSE
         df_pData$cohort <- cohort
     }
     if(use_pData && use_exprs && !use_aenc){
-        exprs_data[, 1] <- NULL
         return(cbind(df_pData, exprs_data))
 
     } else if (use_pData && !use_exprs && !use_aenc) {
@@ -148,7 +148,7 @@ prepare_data <- function(use_exprs, use_pData, vars_pData = NA, use_aenc = FALSE
     }
 }
 
-data_cmplt = prepare_data(FALSE, FALSE, c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'), use_aenc = TRUE)  
+data_cmplt = prepare_data(FALSE, TRUE, c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'), use_aenc = FALSE)  
 print(str(data_cmplt))
 # ------------------------------------------------------------- Create Splits and grids for tuning
 outer_splits <- group_vfold_cv(data_cmplt, group = cohort)
@@ -164,7 +164,7 @@ hyper_grid <- expand.grid(
 
 print(hyper_grid)
 
-# ------------------------------------------------------------ Do nested resampling with AUTOENC
+# # ------------------------------------------------------------ Do nested resampling with AUTOENC
 outer_perf = setNames(data.frame(matrix(ncol = 2, nrow = 9)), c("testing_cohort", "ci"))
 for (i in seq_along(outer_splits$splits)) {
   # Get the split object
@@ -176,9 +176,6 @@ for (i in seq_along(outer_splits$splits)) {
   print(test_cohort)
 
   best_hps <- do_resampling_autoenc(outer_train, hyper_grid, test_cohort)
-  print(best_hps)
-  print(best_hps[1, 'ntree'])
-  print(best_hps[1, 'mtry'])
 
   data_path <- paste0('pretrnd_models_ae\\csv\\' , test_cohort, '.csv') 
   anec_data = read.csv(data_path) %>% mutate_if(is.character, factor)
@@ -187,13 +184,11 @@ for (i in seq_along(outer_splits$splits)) {
   X_train_outer <- as.data.frame(outer_train)
   X_test_outer <- as.data.frame(outer_test)
 
-  X_train_outer = left_join(X_train_outer, data, by = "X")
-  X_test_outer = left_join(X_test_outer, data, by = "X")
+  X_train_outer = left_join(X_train_outer, anec_data, by = "X")
+  X_test_outer = left_join(X_test_outer, anec_data, by = "X")
 
   X_train_outer <- as.data.frame(X_train_outer %>% select(-c(cohort, X)))
   X_test_outer <- as.data.frame(X_test_outer %>% select(-c(cohort, X)))
-  print(ncol(X_train_outer))
-  print(ncol(X_test_outer))
 
   outer_mod <- rfsrc.fast(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = X_train_outer, 
         perf.type = 'none', 
@@ -208,7 +203,7 @@ for (i in seq_along(outer_splits$splits)) {
 }
 
 print(outer_perf)
-write.csv(outer_perf, "rsf_aenc_pData.csv")
+write.csv(outer_perf, "rsf_autoencoder_pData.csv")
 
 
 final_best_hps <- do_resampling_autoenc(data_cmplt, hyper_grid, '')
@@ -225,7 +220,7 @@ final_model <- rfsrc.fast(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = anec_data,
         forest = TRUE)
 
 
-save(final_model,file="rsf_aenc_pData.Rdata")
+save(final_model,file="rsf_autoencoder_pData.Rdata")
 
 
 # ------------------------------------------------------------- Do nested resampling wo autoenc
@@ -240,10 +235,6 @@ save(final_model,file="rsf_aenc_pData.Rdata")
 #   print(test_cohort)
 
 #   best_hps <- do_resampling(outer_train, hyper_grid, test_cohort)
-#   print(best_hps)
-#   print(best_hps[1, 'ntree'])
-#   print(best_hps[1, 'mtry'])
-#   print(i)
 
 #   # reload outer train, outer test based on 
 #   X_train_outer <- as.data.frame(outer_train %>% select(-c(cohort, X)))
@@ -262,17 +253,17 @@ save(final_model,file="rsf_aenc_pData.Rdata")
 # }
 
 # print(outer_perf)
-# write.csv(outer_perf, "rsf_exprs_imp_pData.csv")
+# write.csv(outer_perf, "rsf_scores.csv")
 
-# ------------------------------------------------------------- Tuning + fitting of final model
-# final_best_hps <- do_resampling(data, hyper_grid)
-# data <- as.data.frame(data %>% select(-c(cohort)))
+# # ------------------------------------------------------------- Tuning + fitting of final model
+# final_best_hps <- do_resampling(data_cmplt, hyper_grid)
+# data_cmplt <- as.data.frame(data_cmplt %>% select(-c(cohort)))
 # # todo: insert HPs from above + Remove irrelevant cols
-# final_model <- rfsrc.fast(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = data, 
+# final_model <- rfsrc.fast(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = data_cmplt, 
 #         perf.type = 'none', 
 #         mtry = final_best_hps[1, 'mtry'], ntree = final_best_hps[1, 'ntree'], nodesize = final_best_hps[1, 'nodesize'], 
 #         nsplit = final_best_hps[1, 'nsplit'], save.memory = FALSE,
 #         forest = TRUE)
 
 
-# save(final_model,file="rsf_pData.Rdata")
+# save(final_model,file="rsf_scores.Rdata")

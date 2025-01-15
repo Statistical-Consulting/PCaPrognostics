@@ -45,6 +45,18 @@ class ModellingProcess():
         self.dc = DataContainer(data_config=data_config, project_root=root)
         self.X_test, self.y_test = self.dc.load_test_data()
         self.test_groups = self.dc.get_test_groups()
+    
+    def prepare_test_cohort_data(self, data_config, root, cohorts = None):
+        self.dc = DataContainer(data_config=data_config, project_root=root)
+        X_cohs = []
+        y_cohs = []
+        if cohorts is not None: 
+            for cohort in cohorts: 
+                print(cohort)
+                X, y = self.dc.load_test_data(cohort=cohort)
+                X_cohs = X_cohs.append(X)
+                y_cohs = y_cohs.append(y)
+        return X_cohs, y_cohs
         
         
     # def do_external_validation(self, model_path, ov_name = None): 
