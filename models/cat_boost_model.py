@@ -23,7 +23,7 @@ from sklearn.base import BaseEstimator, RegressorMixin
 class CatBoostModel(BaseEstimator, RegressorMixin): 
     def __init__(self, cat_features = ['TISSUE'], 
                  iterations = None, loss_function = "Cox", eval_metric = "Cox", early_stopping_rounds = 5, 
-                 rsm = 0.1, depth = None, min_data_in_leaf = None, learning_rate = 0.1): 
+                 rsm = 0.1, depth = None, min_data_in_leaf = None, learning_rate = 0.1, from_autoenc = False): 
         super(CatBoostModel, self).__init__()
         self.cat_features = cat_features
         self.is_fitted_ = False
@@ -37,9 +37,11 @@ class CatBoostModel(BaseEstimator, RegressorMixin):
         self.depth = depth
         self.min_data_in_leaf = min_data_in_leaf
         self.learning_rate = learning_rate
+        self.from_autoenc = from_autoenc
         
         
     def _prepare_data(self, X, y):
+        
         y = pd.DataFrame(y)
         if self.loss_function == 'Cox': 
             y['label'] = np.where(y['status'], y['time'], - y['time'])
@@ -49,6 +51,12 @@ class CatBoostModel(BaseEstimator, RegressorMixin):
             y['y_lower'] = y['time']
             y['y_upper'] = np.where(y['status'], y['time'], -1)
             y_fin = y.loc[:,['y_lower','y_upper']]
+        
+        if (self.from_autoenc): 
+            columns = [str(i) for i in range(20)] + ['TISSUE', 'AGE', 'GLEASON_SCORE', 'PRE_OPERATIVE_PSA']
+
+            # Convert to DataFrame
+            X = pd.DataFrame(X, columns=columns)
         
         if self.cat_features is not None: 
             for col in self.cat_features:
