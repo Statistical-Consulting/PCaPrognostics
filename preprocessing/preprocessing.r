@@ -325,7 +325,7 @@ main_processing <- function(rds_file_names) {
 process_test_cohorts <- function(test_rds_file) {
   # Define numeric columns for standardization
   numeric_cols <- c('AGE', 'PRE_OPERATIVE_PSA', 'GLEASON_SCORE')
-
+  
   # Load test cohorts
   test_cohorts <- readRDS(file.path(".", "data", test_rds_file))
   
@@ -395,22 +395,23 @@ process_test_cohorts <- function(test_rds_file) {
   # Filter test expression data for genes present in training data
   training_intersect <- read.csv(file.path(".", "data", "merged_data", "exprs", "intersection", "exprs_intersect.csv"), row.names=1)
   training_common_genes <- read.csv(file.path(".", "data", "merged_data", "exprs", "common_genes", "common_genes.csv"), row.names=1)
+  training_all_genes <- read.csv(file.path(".", "data", "merged_data", "exprs", "all_genes", "all_genes.csv"), row.names=1)
   
   training_genes <- colnames(training_intersect)
   final_genes <- intersect(rownames(test_exprs), training_genes)
   test_exprs_final <- test_exprs[final_genes,]
   
-  # Create copies for test data imputation
+  # Create copies for test data
   test_intersect_imputed <- training_intersect
   test_common_genes_imputed <- training_common_genes
+  test_all_genes <- training_all_genes
   
-  # For each test cohort
   # For each test cohort
   for(i in seq_along(processed_test_cohorts)) {
     cohort_exprs <- processed_test_cohorts[[i]]$exprs
     cohort_name <- paste0("test_cohort_", i)
     
-    # Für jeden Patienten in der Kohorte
+    # For each patient in the cohort
     for(j in 1:ncol(cohort_exprs)) {
       # For intersection genes
       common_genes_intersect <- intersect(rownames(cohort_exprs), colnames(test_intersect_imputed))
@@ -421,16 +422,24 @@ process_test_cohorts <- function(test_rds_file) {
       test_intersect_imputed <- rbind(test_intersect_imputed, new_row)
       
       # For common genes
-      common_genes_all <- intersect(rownames(cohort_exprs), colnames(test_common_genes_imputed))
+      common_genes_common <- intersect(rownames(cohort_exprs), colnames(test_common_genes_imputed))
       new_row <- data.frame(matrix(NA, nrow=1, ncol=ncol(test_common_genes_imputed)))
       colnames(new_row) <- colnames(test_common_genes_imputed)
-      new_row[1, common_genes_all] <- as.numeric(cohort_exprs[common_genes_all, j])
+      new_row[1, common_genes_common] <- as.numeric(cohort_exprs[common_genes_common, j])
       rownames(new_row) <- paste0(cohort_name, "_patient_", j)
       test_common_genes_imputed <- rbind(test_common_genes_imputed, new_row)
+      
+      # For all genes - without imputation
+      common_genes_all <- intersect(rownames(cohort_exprs), colnames(test_all_genes))
+      new_row <- data.frame(matrix(NA, nrow=1, ncol=ncol(test_all_genes)))
+      colnames(new_row) <- colnames(test_all_genes)
+      new_row[1, common_genes_all] <- as.numeric(cohort_exprs[common_genes_all, j])
+      rownames(new_row) <- paste0(cohort_name, "_patient_", j)
+      test_all_genes <- rbind(test_all_genes, new_row)
     }
   }
   
-  # Perform KNN imputation on both datasets
+  # Perform KNN imputation on intersection and common genes datasets
   # For intersection genes
   test_intersect_matrix <- as.matrix(test_intersect_imputed)
   imputed_intersect <- impute.knn(test_intersect_matrix, k=35)
@@ -445,6 +454,18 @@ process_test_cohorts <- function(test_rds_file) {
   test_cohort_rows <- grep("^test_cohort_", rownames(test_intersect_imputed))
   test_intersect_imputed <- test_intersect_imputed[test_cohort_rows,]
   test_common_genes_imputed <- test_common_genes_imputed[test_cohort_rows,]
+  test_all_genes <- test_all_genes[test_cohort_rows,]
+  
+  # Remove training observations (keep only test cohort rows)
+  test_cohort_rows <- grep("^test_cohort_", rownames(test_intersect_imputed))
+  test_intersect_imputed <- test_intersect_imputed[test_cohort_rows,]
+  test_common_genes_imputed <- test_common_genes_imputed[test_cohort_rows,]
+  test_all_genes <- test_all_genes[test_cohort_rows,]
+  
+  # Ensure rownames of pData match exprs data
+  original_rownames <- rownames(test_pdata)
+  new_rownames <- rownames(test_intersect_imputed)
+  rownames(test_pdata) <- new_rownames[1:nrow(test_pdata)]
   
   # Save merged test data
   write.csv(test_pdata, 
@@ -464,11 +485,17 @@ process_test_cohorts <- function(test_rds_file) {
             file.path(".", "data", "merged_data", "exprs", "common_genes", "common_genes_test_imputed.csv"), 
             row.names = TRUE)
   
+  # Save all genes test data (without imputation)
+  write.csv(test_all_genes,
+            file.path(".", "data", "merged_data", "exprs", "all_genes", "all_genes_test.csv"), 
+            row.names = TRUE)
+  
   return(list(
     test_pdata = test_pdata,
     test_exprs = test_exprs_final,
     test_exprs_common_imputed = test_common_genes_imputed,
-    test_exprs_intersect_imputed = test_intersect_imputed
+    test_exprs_intersect_imputed = test_intersect_imputed,
+    test_exprs_all = test_all_genes
   ))
 }
 
