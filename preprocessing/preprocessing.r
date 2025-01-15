@@ -469,7 +469,7 @@ process_test_cohorts <- function(test_rds_file) {
   
   # Save merged test data
   write.csv(test_pdata, 
-            file.path(".", "data", "merged_data", "pData", "original", "test_pData.csv"))
+            file.path(".", "data", "merged_data", "pData", "imputed", "test_pData_imputed.csv"))
   
   # Save intersection test genes
   write.csv(t(test_exprs_final), 
