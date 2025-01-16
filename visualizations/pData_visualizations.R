@@ -456,3 +456,61 @@ plot_ly(
     )
   )
 
+################################################################################################################
+# Dot Plot with reference line
+# Beispiel-Daten
+# Daten erstellen
+data <- data.frame(
+  Kategorie = c("A", "B", "C", "D"),
+  Wert = c(10, 15, 8, 12)
+)
+
+# Hier machen wir aus "A", "B", "C", "D" gültige Faktorstufen:
+data$Kategorie <- factor(data$Kategorie, levels = c("A", "B", "C", "D"))
+
+# ggplot2 laden
+library(ggplot2)
+
+# Plot erstellen
+ggplot(data, aes(y = Kategorie, x = Wert)) +
+  # Horizontale Verbindungslinie
+  geom_segment(aes(xend = 12, yend = Kategorie), 
+               linetype = "solid", color = "gray") +
+  
+  # Kurze Vertikallinie am Anfang (x = Wert)
+  geom_segment(aes(
+    x    = Wert, 
+    xend = Wert,
+    # jetzt klappt as.numeric(), weil Kategorie ein Faktor ist
+    y    = as.numeric(Kategorie) - 0.1,  
+    yend = as.numeric(Kategorie) + 0.1
+  ),
+  linetype = "solid", color = "gray") +
+  
+  # Kurze Vertikallinie am Ende (x = 12)
+  geom_segment(aes(
+    x    = 12, 
+    xend = 12,
+    y    = as.numeric(Kategorie) - 0.1,  
+    yend = as.numeric(Kategorie) + 0.1
+  ),
+  linetype = "solid", color = "gray") +
+  
+  # Vertikale Referenzlinie
+  geom_vline(xintercept = 12, linetype = "dashed", color = "red") +
+  
+  # Vertikale Linien an den Punkten
+  geom_segment(aes(
+    x    = Wert, 
+    xend = Wert, 
+    y    = as.numeric(Kategorie) - 0.2, 
+    yend = as.numeric(Kategorie) + 0.2
+  ),
+  linetype = "solid", color = "grey", size = 0.4) +
+  
+  labs(
+    title = "Dot Plot mit vertikalen Linien und horizontalen Verbindungen",
+    x = "Wert",
+    y = "Kategorie"
+  ) +
+  theme_minimal()
