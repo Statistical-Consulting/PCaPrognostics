@@ -238,27 +238,27 @@ test_perf_all_models <- function(model_path){
 
 # ------------------------------------------------------------------------------------------------------------------
 # --------------------- load and inspect performance
-# results_path_nstd <- "models\\pen_cox\\results\\results"
-# combined_results_nstd <- load_all_results(results_path = results_path_nstd)
-# split_results_path <- 'results_modelling_splits\\splits_coxph.csv'
-# write.csv(combined_results_nstd, split_results_path)
+results_path_nstd <- "models\\pen_cox\\results\\results"
+combined_results_nstd <- load_all_results(results_path = results_path_nstd)
+split_results_path <- 'results_modelling_splits\\splits_coxph.csv'
+write.csv(combined_results_nstd, split_results_path)
 
 
-# combined_results_aggr <- aggregate_results(combined_results_nstd)
-# print(combined_results_aggr)
+combined_results_aggr <- aggregate_results(combined_results_nstd)
+print(combined_results_aggr)
 
-# test_perf <- test_perf_all_models("models\\pen_cox\\results\\model")
-# print(test_perf)
+test_perf <- test_perf_all_models("models\\pen_cox\\results\\model")
+print(test_perf)
 
-# final_results <- combine_results(combined_results_aggr, test_perf)
-# print(final_results)
-# final_results_path <- 'results_modelling_ovs\\ov_coxph.csv'
-# write.csv(combined_results_aggr, final_results_path)
+final_results <- combine_results(combined_results_aggr, test_perf)
+print(final_results)
+final_results_path <- 'results_modelling_ovs\\ov_coxph.csv'
+write.csv(final_results, final_results_path)
 
-feat_imps <- feat_imp_all_models("models\\pen_cox\\results\\model")
-print(feat_imps)
-feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_pencox.csv'
-write.csv(feat_imps, feat_imp_path)
+# feat_imps <- feat_imp_all_models("models\\pen_cox\\results\\model")
+# print(feat_imps)
+# feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_pencox.csv'
+# write.csv(feat_imps, feat_imp_path)
 
 
 # final_results_path <- 'results_modelling\\pen_cox.csv'

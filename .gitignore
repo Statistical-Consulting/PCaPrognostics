@@ -134,7 +134,7 @@ cython_debug/
 # Data files
 *.Rds
 *.plk
-*.csv
+#*.csv
 # Docu Files
 *.pdf
 *.docx
