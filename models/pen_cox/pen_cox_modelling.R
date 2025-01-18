@@ -104,8 +104,8 @@ prepare_data <- function(use_exprs, use_pData, vars_pData = NA, use_aenc = FALSE
     }
 }
 
-use_aenc = FALSE
-data_cmplt = prepare_data(TRUE, TRUE, c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'), use_aenc = use_aenc)  
+use_aenc = TRUE
+data_cmplt = prepare_data(FALSE, FALSE, c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'), use_aenc = use_aenc)  
 print(str(data_cmplt))
 # ------------------------------------------------------------- Create Splits and grids for tuning
 outer_splits <- group_vfold_cv(data_cmplt, group = cohort)
@@ -138,8 +138,8 @@ if (use_aenc){
     #print(nrow(outer_test))
     #print(ncol(outer_test))
 
-    outer_train <- as.data.frame(outer_train %>% select(-c(X)))
-    outer_test <- as.data.frame(outer_test %>% select(-c(X)))
+    #outer_train <- as.data.frame(outer_train %>% select(-c(X)))
+    #outer_test <- as.data.frame(outer_test %>% select(-c(X)))
 
 } 
     outer_train <- as.data.frame(outer_train %>% select(-c(X)))
@@ -163,17 +163,17 @@ outer_perf[i, ] <- c(test_cohort, outer_cindex_se, outer_cindex_min)
 
 print(outer_perf)
 
-write.csv(outer_perf, "pen_score_pdata.csv")
+write.csv(outer_perf, "pen_autoenc_paper.csv")
 
 # --------------------------------------------------------------- Tuning + fitting of final model with Aenc
-# data_path <- paste0('pretrnd_models_ae\\csv\\pretrnd_cmplt.csv') 
-# aenc_data <- read.csv(data_path) %>% mutate_if(is.character, factor)
-# aenc_data <- left_join(data_cmplt, aenc_data, by = "X")
-# str(aenc_data)
-# anec_data <- as.data.frame(aenc_data %>% select(-c(X)))
-# final_model <- do_resampling(anec_data)
+data_path <- paste0('pretrnd_models_ae\\csv\\pretrnd_cmplt.csv') 
+aenc_data <- read.csv(data_path) %>% mutate_if(is.character, factor)
+aenc_data <- left_join(data_cmplt, aenc_data, by = "X")
+str(aenc_data)
+anec_data <- as.data.frame(aenc_data %>% select(-c(X)))
+final_model <- do_resampling(anec_data)
 
 # # ------------------------------------------------------------- Tuning + fitting of final model
-data_cmplt <- as.data.frame(data_cmplt %>% select(-c(X)))
-final_model <- do_resampling(data_cmplt)
-save(final_model,file="pen_score_pdata.Rdata")
+# data_cmplt <- as.data.frame(data_cmplt %>% select(-c(X)))
+# final_model <- do_resampling(data_cmplt)
+save(final_model,file="pen_autoenc_paper.Rdata")

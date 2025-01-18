@@ -1,3 +1,6 @@
+library(readr)
+
+
 pData <- as.data.frame(read_csv('data/merged_data/pData/imputed/test_pData_imputed.csv', lazy = TRUE))
 common_genes <- read.csv(file.path(".", "data", "merged_data", "exprs", "common_genes", "common_genes_test_imputed.csv"), row.names=1)
 intersect_genes <- read.csv(file.path(".", "data", "merged_data", "exprs", "intersection", "intersect_test_genes_imputed.csv"), row.names=1)

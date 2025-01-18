@@ -105,8 +105,8 @@ class DataLoader:
                 'common_genes_test_imputed.csv'
             ]
         elif gene_type == 'autoencoder': 
-            exprs = self.load_csv_files(os.path.join(exprs_path, 'autoencoder'))[
-                'autoencoded_genes_test.csv'
+            exprs = self.load_csv_files(os.path.join(self.base_path, 'pretrnd_models_ae', 'csv_eval'))[
+                'pretrnd_cmplt.csv'
             ]
         elif gene_type =='scores': 
             exprs = self.load_csv_files(self.score_path)['test_scores.csv']
@@ -115,7 +115,7 @@ class DataLoader:
 
         merged_pdata_path = os.path.join(self.merged_data_path, 'pData')
         
-        pdata =  self.load_csv_files(os.path.join(merged_pdata_path, 'imputed'))['test_pData.csv'] \
+        pdata =  self.load_csv_files(os.path.join(merged_pdata_path, 'imputed'))['test_pData_imputed.csv'] \
             if use_imputed else self.load_csv_files(
             os.path.join(merged_pdata_path, 'original')
         )['test_pData.csv']

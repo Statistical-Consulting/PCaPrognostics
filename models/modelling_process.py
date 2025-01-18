@@ -46,16 +46,17 @@ class ModellingProcess():
         self.X_test, self.y_test = self.dc.load_test_data()
         self.test_groups = self.dc.get_test_groups()
     
-    def prepare_test_cohort_data(self, data_config, root, cohorts = None):
-        self.dc = DataContainer(data_config=data_config, project_root=root)
-        X_cohs = []
-        y_cohs = []
+    def prepare_test_cohort_data(self, data_config, root, cohorts):
+        dc = DataContainer(data_config=data_config, project_root=root)
+        X_cohs = list()
+        y_cohs = list()
+        print(cohorts)
         if cohorts is not None: 
             for cohort in cohorts: 
-                print(cohort)
-                X, y = self.dc.load_test_data(cohort=cohort)
-                X_cohs = X_cohs.append(X)
-                y_cohs = y_cohs.append(y)
+                #print(cohort)
+                X, y = dc.load_test_data(cohort=cohort)
+                X_cohs.append(X)
+                y_cohs.append(y)
         return X_cohs, y_cohs
         
         
@@ -172,14 +173,14 @@ class ModellingProcess():
             pd.DataFrame(cv_results).to_csv(results_file)
             logger.info(f"Saved CV results to {results_file}")
             
-        if pipe is None: 
-            logger.warning("Won't save any pipe, since its not provided")
-        else:
-            pipe_dir = os.path.join(path, 'pipe')
-            os.makedirs(pipe_dir, exist_ok=True)
-            with open(os.path.join(pipe_dir, f"{fname}.pkl"), 'wb') as f:
-                pickle.dump(pipe, f)
-            logger.info(f"Saved pipe to {pipe_dir}")
+        # if pipe is None: 
+        #     logger.warning("Won't save any pipe, since its not provided")
+        # else:
+        #     pipe_dir = os.path.join(path, 'pipe')
+        #     os.makedirs(pipe_dir, exist_ok=True)
+        #     with open(os.path.join(pipe_dir, f"{fname}.pkl"), 'wb') as f:
+        #         pickle.dump(pipe, f)
+        #     logger.info(f"Saved pipe to {pipe_dir}")
 
 
 

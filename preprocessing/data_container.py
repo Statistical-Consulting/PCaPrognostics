@@ -32,6 +32,7 @@ class DataContainer:
         self.project_root = project_root
         self.pca = None
         self.groups = None
+    
         
     def load_test_data(self, cohort = None): 
         loader = DataLoader(self.project_root)
@@ -40,14 +41,27 @@ class DataContainer:
                 use_imputed=self.config['use_imputed'])
         
         if cohort is not None: 
-            print(cohort)
             X = X[X.index.str.startswith(cohort)]
             pdata = pdata[pdata.index.str.startswith(cohort)]
-            print(pdata.info)
+        
+        #print(pdata.info)
+        #print(X.info)
         
         y = loader.prepare_survival_data(pdata)
                 
-        self.test_groups = np.array([idx.split('.')[0] for idx in X.index])
+        #self.test_groups = np.array([idx.split('.')[0] for idx in pdata.index])
+        
+        import re
+        def extract_first_part_with_number(s):
+            match = re.search(r'\d', s)  # Find first number
+            if match:
+                return s[:match.start() + 1]  # Include the number in the first part
+            return s 
+        
+        #self.test_groups = X.index.apply(extract_first_part_with_number)
+        test_groups = np.array([re.split(r'(\d)', idx, maxsplit=1)[:2] for idx in X.index])
+        self.test_groups = np.array([''.join(part) if len(part) > 1 else part[0] for part in test_groups])
+        #self.test_groups_pData = np.array([idx.split('.')[0] for idx in pdata.index])
         
         if self.config.get('clinical_covs', None) is not None:
             logger.info('Found clinical data specification')
@@ -61,15 +75,23 @@ class DataContainer:
             cat_cols = clin_data.select_dtypes(exclude=['number']).columns
             num_cols = clin_data.select_dtypes(exclude=['object']).columns
             clin_data_cat = clin_data.loc[:, cat_cols]
+            #clin_data_cat = pd.DataFrame( index=pdata.index)
+            #clin_data_cat.set_index(pdata.index)
+
+            if self.config.get('requires_ohenc', True) is False:
+                clin_data_cat.loc[ : , 'TISSUE'] = 'Fresh_frozen'
             if self.config.get('requires_ohenc', True) is True:
                 # TODO: Versatile machen
                 #ohc = OneHotEncoder()
                 #clin_data_cat = ohc.fit_transform(clin_data_cat)
                 #clin_data_cat = pd.DataFrame.sparse.from_spmatrix(clin_data_cat, columns=ohc.get_feature_names_out()).set_index(X.index)
-                clin_data_cat['TISSUE_FFPE'] = 0
-                clin_data_cat['TISSUE_Fresh_frozen'] = 1
-                clin_data_cat['TISSUE_Snap_frozen'] = 0
-                
+                print(clin_data_cat.columns)
+                clin_data_cat.loc[: ,'TISSUE_FFPE'] = 0
+                clin_data_cat.loc[: ,'TISSUE_Fresh_frozen'] = 1
+                clin_data_cat.loc[: ,'TISSUE_Snap_frozen'] = 0
+                print(clin_data_cat.columns)
+
+                clin_data_cat.drop(['TISSUE'], axis = 1, inplace=True)
                 
             clin_data_num = clin_data.loc[:, num_cols]
             
@@ -162,6 +184,7 @@ class DataContainer:
     def get_groups(self):
         """Return cohort labels"""
         return self.groups
+
     
     def get_test_groups(self):
         """Return cohort labels"""

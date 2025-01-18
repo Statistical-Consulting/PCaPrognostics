@@ -109,6 +109,7 @@ prepare_data <- function(use_exprs, use_pData, vars_pData = NA, use_aenc = FALSE
         exprs_data <- as.data.frame(read_csv('data/scores/train_scores.csv', lazy = TRUE))
         #exprs_data <- as.data.frame(read_csv('data/merged_data/exprs/common_genes/common_genes_knn_imputed.csv', lazy = TRUE))
         exprs_data[, 1] <- NULL
+        print(str(exprs_data))
     }
         df_pData = read.csv2('data/merged_data/pData/imputed/merged_imputed_pData.csv', sep = ',')
         print(str(df_pData))
@@ -148,7 +149,7 @@ prepare_data <- function(use_exprs, use_pData, vars_pData = NA, use_aenc = FALSE
     }
 }
 
-data_cmplt = prepare_data(FALSE, TRUE, c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'), use_aenc = FALSE)  
+data_cmplt = prepare_data(FALSE, FALSE, c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'), use_aenc = TRUE)  
 print(str(data_cmplt))
 # ------------------------------------------------------------- Create Splits and grids for tuning
 outer_splits <- group_vfold_cv(data_cmplt, group = cohort)
@@ -203,7 +204,7 @@ for (i in seq_along(outer_splits$splits)) {
 }
 
 print(outer_perf)
-write.csv(outer_perf, "rsf_autoencoder_pData.csv")
+write.csv(outer_perf, "rsf_autoencoder_paper.csv")
 
 
 final_best_hps <- do_resampling_autoenc(data_cmplt, hyper_grid, '')
@@ -220,7 +221,7 @@ final_model <- rfsrc.fast(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = anec_data,
         forest = TRUE)
 
 
-save(final_model,file="rsf_autoencoder_pData.Rdata")
+save(final_model,file="rsf_autoencoder_paper.Rdata")
 
 
 # ------------------------------------------------------------- Do nested resampling wo autoenc

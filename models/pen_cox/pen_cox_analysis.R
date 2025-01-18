@@ -1,38 +1,114 @@
 
 library(glmnet)
 library(dplyr)
+library(readr)
+library(randomForestSRC)
+# Load necessary libraries
+library(randomForestSRC)
+library(caret)
+library(dplyr)
+library(survival)
+library(dplyr)
+library(prioritylasso)
+library(survival)
+library(readr)
+library(rsample)
+library(purrr)
+library(SurvMetrics)
 
+# ------------------ functions to load perf. results
 load_all_results <- function(results_path) {
     csv_files <- list.files(results_path, pattern = "\\.csv$", full.names = TRUE)
     combined_data <- lapply(csv_files, function(file) {
-        data <- read.csv(file)
-        data$model <- basename(file)
-        return(data)
+        df <- read.csv(file)
+        df$model <- gsub(".csv", "", basename(file))
+        # Perform regex searches
+        contains_pData <- grepl("pData", file, ignore.case = TRUE)
+        contains_intersection <- grepl("inter|intersection", file, ignore.case = TRUE)
+        contains_imputed <- grepl("imp|imputed|common", file, ignore.case = TRUE)
+        contains_aenc <- grepl("aenc|auto|autoenc", file, ignore.case = TRUE)
+        contains_scores <- grepl("score|scores", file, ignore.case = TRUE)
+
+        # Create a vector of components based on conditions
+        components <- c(
+        if (contains_pData) "pData",
+        if (contains_intersection) "Intersection",
+        if (contains_imputed) "Imputed",
+        if (contains_aenc) "AutoEncoder",
+        if (contains_scores) "Scores"
+        )
+
+        # Join non-empty components with "_" as a separator
+        dataset <- paste(components, collapse = "_")
+
+        # Assign dataset to a dataframe column
+        df$dataset <- dataset
+        return(df)
+
   }) %>% bind_rows()
+  combined_data[, 1] <- NULL
 
   return(combined_data)
 }
+
 
 aggregate_results <- function(results) {
     results_aggr <- results %>% group_by(model) %>% summarise(mean = mean(ci_min), sd = sd(ci_min))
     return(results_aggr)
 }
 
-combine_results <- function(results_nstd, results_test_1, results_test_2){
-    # TODO: Join on file name, mean perf -test als neue column
-}
+combine_results <- function(results_nstd, results_test){
+    df <- merge(results_nstd, results_test)
+    df[, 1] <- NULL
 
+    return(df)
+}
 # -------------------- functions to load feat. imp from model
-load_feat_imp <- function(model_path, flag_lmbd){
+load_feat_imp <- function(final_model, flag_lmbd = 'lambda.min'){
     #model = load("pen_lasso_exprs_imputed_pData.Rdata")
-    load(model_path)
+    #load(model_path)
     coefs <- as.matrix(coef(final_model, s = flag_lmbd))
-    non_zero_coefs <- coefs[coefs != 0, , drop = FALSE]  # Extract non-zero coefficients
+    non_zero_coefs <- coefs[coefs > 0, , drop = FALSE]  # Extract non-zero coefficients
     #print(non_zero_coefs)
     #return(non_zero_coefs)
     coef_df <- data.frame(feature = rownames(coefs),
     values = as.numeric(coefs))
+    coef_df <- coef_df %>% filter(values > 0)
     return(coef_df)
+}
+
+feat_imp_all_models <- function(model_path){
+    files <- list.files(model_path)
+    combined_data <- lapply(files, function(file) {
+        load(paste0(model_path, "\\", file))
+        # Perform regex searches
+        contains_pData <- grepl("pData", file, ignore.case = TRUE)
+        contains_intersection <- grepl("inter|intersection", file, ignore.case = TRUE)
+        contains_imputed <- grepl("imp|imputed|common", file, ignore.case = TRUE)
+        contains_aenc <- grepl("aenc|auto|autoenc", file, ignore.case = TRUE)
+        contains_scores <- grepl("score|scores", file, ignore.case = TRUE)
+
+        # Create a vector of components based on conditions
+        components <- c(
+        if (contains_pData) "pData",
+        if (contains_intersection) "Intersection",
+        if (contains_imputed) "Imputed",
+        if (contains_aenc) "AutoEncoder",
+        if (contains_scores) "Scores"
+        )
+
+        # Join non-empty components with "_" as a separator
+        dataset <- paste(components, collapse = "_")
+
+        imps <- load_feat_imp(final_model, 'lambda.min')
+        imps$dataset <- dataset
+        imps$model <- 'pen_cox'#gsub(".Rdata", "", basename(file))
+        return(imps)
+
+  }) %>% bind_rows()
+  # combined_data[, 1] <- NULL
+
+  return(combined_data)
 }
 
 # ------------------- Get perfroamnce across all models for that model class
@@ -50,11 +126,12 @@ test_perf_all_models <- function(model_path){
         contains_aenc <- grepl("aenc|auto|autoenc", file, ignore.case = TRUE)
         contains_score <- grepl("score|scores", file, ignore.case = TRUE)
 
-        df_pData <- read.csv("data/merged_data/pData/imputed/test_pData.csv")
+        df_pData <- read.csv("data/merged_data/pData/imputed/test_pData_imputed.csv")
         df_pData = df_pData %>% mutate(AGE = as.numeric(AGE), PRE_OPERATIVE_PSA = as.numeric(PRE_OPERATIVE_PSA), GLEASON_SCORE = as.numeric(GLEASON_SCORE)) 
         df_pData$MONTH_TO_BCR <- as.numeric(as.character(df_pData$MONTH_TO_BCR))
         df_pData$MONTH_TO_BCR[df_pData$MONTH_TO_BCR == 0] <- 0.0001
-        cohort <- sub("\\..*", "", df_pData$X)
+        #cohort <- sub("\\..*", "", df_pData$X)
+        cohort <- sub("^([^0-9]*\\d).*", "\\1", df_pData$X)
 
         data <- data.frame()
         if (contains_intersection){
@@ -121,7 +198,7 @@ test_perf_all_models <- function(model_path){
         #print(str(data))
         # split data into cohorts
         cohorts = unique(data$cohort)
-
+        print(cohorts)
         # data_co1 = data %>% filter(cohort == cohorts[1])
         # data_co2 = data %>% filter(cohort == cohorts[2])
 
@@ -133,9 +210,7 @@ test_perf_all_models <- function(model_path){
         data_co1 = data %>% filter(cohort == cohorts[1])
         data_co2 = data %>% filter(cohort == cohorts[2])
 
-        print(str(data_co1))
-        print(sum(is.na(data_co1)))
-        print(sum(is.na(data_co2)))
+        #print(str(data_co1))
         #print(str(data_co2))
 
         y1 <- Surv(data_co1$MONTH_TO_BCR, data_co1$BCR_STATUS)
@@ -148,10 +223,13 @@ test_perf_all_models <- function(model_path){
         test_preds1 <- predict(final_model, data_co1,  s = 'lambda.min')
         test_preds2 <- predict(final_model, data_co2,  s = 'lambda.min')
         cindex1 <- apply(test_preds1, 2, glmnet::Cindex, y=y1)
-        #outer_cindex2 <- apply(test_preds2, 2, glmnet::Cindex, y=y2)
-        cindex2 <- NA
+        cindex2 <- apply(test_preds2, 2, glmnet::Cindex, y=y2)
+        # cindex2 <- NA
 
-        perf[i, ] <- c(file, cindex1, cindex2)
+        print(cindex1)
+        print(cindex2)
+
+        perf[i, ] <- c(gsub(".Rdata", "", file), cindex1, cindex2)
     }
     return(perf)
 }
@@ -160,13 +238,32 @@ test_perf_all_models <- function(model_path){
 
 # ------------------------------------------------------------------------------------------------------------------
 # --------------------- load and inspect performance
-results_path_nstd <- "models\\pen_cox\\results\\results"
-combined_results_nstd <- load_all_results(results_path = results_path_nstd)
+# results_path_nstd <- "models\\pen_cox\\results\\results"
+# combined_results_nstd <- load_all_results(results_path = results_path_nstd)
+# split_results_path <- 'results_modelling_splits\\splits_coxph.csv'
+# write.csv(combined_results_nstd, split_results_path)
 
-combined_results_aggr <- aggregate_results(combined_results_nstd)
-print(combined_results_aggr)
 
-#test_perf <- test_perf_all_models("models\\pen_cox\\results\\model")
+# combined_results_aggr <- aggregate_results(combined_results_nstd)
+# print(combined_results_aggr)
+
+# test_perf <- test_perf_all_models("models\\pen_cox\\results\\model")
+# print(test_perf)
+
+# final_results <- combine_results(combined_results_aggr, test_perf)
+# print(final_results)
+# final_results_path <- 'results_modelling_ovs\\ov_coxph.csv'
+# write.csv(combined_results_aggr, final_results_path)
+
+feat_imps <- feat_imp_all_models("models\\pen_cox\\results\\model")
+print(feat_imps)
+feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_pencox.csv'
+write.csv(feat_imps, feat_imp_path)
+
+
+# final_results_path <- 'results_modelling\\pen_cox.csv'
+# write.csv(final_results, final_results_path)
+
 
 # ACTUALLY: SAVE COMBINED RESULTS TO CSV
 #final_results_path <- 'results_modelling\\pen_cox.csv'
@@ -177,7 +274,8 @@ print(combined_results_aggr)
 
 
 #---------------------- get feature imp 
-best_model_csv <- combined_results_aggr[combined_results_aggr$mean == max(combined_results_aggr$mean), 'model']
-best_model_rdata <- gsub("\\.csv$", ".Rdata", best_model_csv)
-model_path <- paste0("models\\pen_cox\\results\\model\\", best_model_rdata)
-coefs <- load_feat_imp(model_path, 'lambda.min')
+# best_model_csv <- combined_results_aggr[combined_results_aggr$mean == max(combined_results_aggr$mean), 'model']
+# best_model_rdata <- gsub("\\.csv$", ".Rdata", best_model_csv)
+# model_path <- paste0("models\\pen_cox\\results\\model\\", best_model_rdata)
+# coefs <- load_feat_imp(model_path, 'lambda.min')
+# print(coefs)

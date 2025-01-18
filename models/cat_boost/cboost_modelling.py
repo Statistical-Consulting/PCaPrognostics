@@ -17,7 +17,7 @@ if PROJECT_ROOT not in sys.path:
     
 
 # Setup directories
-RESULTS_DIR = os.path.join(Path(__file__).parent.resolve(), 'results_cox')
+RESULTS_DIR = os.path.join(Path(__file__).parent.resolve(), 'results')
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # Imports
@@ -53,7 +53,7 @@ DATA_CONFIG = {
     # Auf True wenn NUR pDaten verwendet werden sollen
     'only_pData': False,
     # Nur benötigt wenn pDaten mitgefitten werden sollen
-    'clinical_covs' : ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA']
+    # 'clinical_covs' : ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA']
 }
 
 mp = ModellingProcess()
@@ -74,13 +74,13 @@ MODEL_CONFIG = {
         'model__depth': [3, 5, 10],
         'model__min_data_in_leaf': [3, 5, 10],
         'model__nan_mode' : ["Forbidden"], 
-        'model__rsm' : [None]
+        'model__rsm' : [None, 0.1]
         },
     'refit': False, 
     'do_nested_resampling': True, 
     'path' : RESULTS_DIR, 
     # TODO: WICHTIG: Ändern pro Modell; Dateiname des Modells
-    'fname_cv' : 'cboost_autoencoder_pData'}
+    'fname_cv' : 'cboost_autoencoder_paper'}
 
 
 # MODEL_CONFIG = {
@@ -106,8 +106,9 @@ from utils.feature_selection import FoldAwareSelectFromModel, FoldAwareAE
 # Create the dynamic model selector
 #dynamic_selector = FoldAwareSelectFromModel(estimator=GradientBoostingSurvivalAnalysis(), threshold = "mean")
 #dynamic_selector = SelectFromModel(pretrained_gb)
-pdata_cols = ['TISSUE', 'AGE',
-       'GLEASON_SCORE', 'PRE_OPERATIVE_PSA']
+#pdata_cols = ['TISSUE', 'AGE',
+#       'GLEASON_SCORE', 'PRE_OPERATIVE_PSA']
+pdata_cols = []
 exprs_cols =  list(set(mp.X.columns) - set(pdata_cols))
 
 ae = FoldAwareAE()
@@ -121,8 +122,11 @@ preprocessor = ColumnTransformer(
 # Define the pipeline
 pipe_steps = [
     ('preprocessor', preprocessor),
-    ('model', CatBoostModel(from_autoenc = True))]
+    ('model', CatBoostModel(from_autoenc_exprs= True, cat_features=None))]
 
 mp.do_modelling(pipe_steps, MODEL_CONFIG)
 
 #nstd_res_result = mp.do_modelling(pipe_steps, MODEL_CONFIG)
+#import torch
+#mp.cmplt_pipeline.to(torch.device('cpu'))
+#torch.save(mp.cmplt_pipeline, os.path.join(PROJECT_ROOT, RESULTS_DIR, 'pipe', "cboost_autoencoder_pData_paper.pth"))

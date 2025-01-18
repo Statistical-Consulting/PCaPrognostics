@@ -70,8 +70,8 @@ do_resampling <- function(outer_train, blocks) {
   return(prio_lasso)
 }
 
-df_blockwise_data = read_csv('models/prio_lasso/df_block_data_small.csv', lazy = TRUE)
-df_blockwise_indcs = read_csv('models/prio_lasso/df_block_indices_small.csv')
+df_blockwise_data = read_csv('models/prio_lasso/df_block_data_100_300.csv', lazy = TRUE)
+df_blockwise_indcs = read_csv('models/prio_lasso/df_block_indices_100_300.csv')
 df_pData = read_csv('data/merged_data/pData/imputed/merged_imputed_pData.csv')
 df_pData$MONTH_TO_BCR <- as.numeric(as.character(df_pData$MONTH_TO_BCR))
 df_pData$MONTH_TO_BCR[df_pData$MONTH_TO_BCR == 0] <- 0.0001
@@ -104,10 +104,10 @@ for (i in seq_along(outer_splits$splits)) {
 
     # Predict on the outer test set
     if (any(is.na(x_test_outer))) {
-      outer_predictions <- predict(best_mod, newdata = x_test_outer, type = "response", handle.missingtestdata = c("set.zero"))
+      outer_predictions <- predict(best_mod, newdata = x_test_outer, type = "response", handle.missingtestdata = c("set.zero"), include.allintercepts = TRUE)
     } 
     else {
-      outer_predictions <- predict(best_mod, newdata = x_test_outer, type = "response", handle.missingtestdata = c("none"))
+      outer_predictions <- predict(best_mod, newdata = x_test_outer, type = "response", handle.missingtestdata = c("none"), include.allintercepts = TRUE)
     }
 
     # Compute metrics for the outer test set
@@ -117,8 +117,8 @@ for (i in seq_along(outer_splits$splits)) {
 }
 
 print(outer_perf)
-write.csv(outer_perf, "prioLasso_small.csv")
+write.csv(outer_perf, "prioLasso_100_300.csv")
 
 
 final_model <- do_resampling(data, blocks = blocks)
-save(final_model,file="prioLasso_small.Rdata")
+save(final_model,file="prioLasso_100_300.Rdata")
