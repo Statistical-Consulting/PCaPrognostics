@@ -467,6 +467,7 @@ process_test_cohorts <- function(test_rds_file) {
   new_rownames <- rownames(test_intersect_imputed)
   rownames(test_pdata) <- new_rownames[1:nrow(test_pdata)]
   
+  #test_pdata$TISSUE <-  "Fresh_frozen"
   # Save merged test data
   write.csv(test_pdata, 
             file.path(".", "data", "merged_data", "pData", "imputed", "test_pData_imputed.csv"))
@@ -499,10 +500,39 @@ process_test_cohorts <- function(test_rds_file) {
   ))
 }
 
-# Function to process and save risk scores
 process_risk_scores <- function(rds_file_path) {
   # Read the RDS file
   risk_scores <- readRDS(file.path(".", "data", rds_file_path))
+  
+  # Create directory for scores
+  scores_dir <- file.path(".", "data", "scores")
+  cohort_scores_dir <- file.path(scores_dir, "cohort_specific")
+  dir.create(cohort_scores_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  # Save individual cohort scores
+  for(cohort_name in names(risk_scores)) {
+    cohort_scores <- risk_scores[[cohort_name]]
+    
+    # Create data frame for this cohort
+    cohort_df <- data.frame(
+      sample_id = names(cohort_scores),
+      risk_score = unname(cohort_scores),
+      stringsAsFactors = FALSE
+    )
+    
+    # Add cohort prefix to sample IDs if not already present
+    cohort_df$sample_id <- sapply(cohort_df$sample_id, function(name) {
+      if (!grepl(paste0("^", cohort_name), name)) {
+        return(paste(cohort_name, name, sep="_"))
+      }
+      return(name)
+    })
+    
+    # Save individual cohort scores
+    write.csv(cohort_df,
+              file.path(cohort_scores_dir, paste0(cohort_name, "_scores.csv")),
+              row.names = FALSE)
+  }
   
   # Create all scores vector (merge all cohorts)
   all_scores <- unlist(risk_scores)
@@ -549,11 +579,7 @@ process_risk_scores <- function(rds_file_path) {
     stringsAsFactors = FALSE
   )
   
-  # Create directory for scores
-  scores_dir <- file.path(".", "data", "scores")
-  dir.create(scores_dir, recursive = TRUE, showWarnings = FALSE)
-  
-  # Save CSV files
+  # Save merged CSV files
   write.csv(all_scores_df, 
             file.path(scores_dir, "all_scores.csv"), 
             row.names = FALSE)
@@ -567,7 +593,8 @@ process_risk_scores <- function(rds_file_path) {
   return(list(
     all_scores = all_scores_df,
     train_scores = train_scores_df, 
-    test_scores = test_scores_df
+    test_scores = test_scores_df,
+    cohort_scores = risk_scores  # Return individual cohort scores as well
   ))
 }
 
@@ -591,8 +618,8 @@ main <- function(rds_file_names, test_rds_file) {
 }
 
 # Call the main function
-rds_file_names <- c("PCa_cohorts.Rds")
-test_rds_file <- "PCa_cohorts_2.Rds"
+rds_file_names <- c("PCa_cohorts.RDS")
+test_rds_file <- "PCa_cohorts_2.RDS"
 result <- main(rds_file_names, test_rds_file)
 
 
