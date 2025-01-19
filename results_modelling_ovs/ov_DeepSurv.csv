@@ -1,2 +1,8 @@
-,model,mean,sd,ci_coh1,ci_coh2
-0,deepsurv_autoencoder_pData,0.5396623504066832,0.0512962185420055,0.44168962350780533,0.5611159764794195
+"","...1","model","mean","sd","ci_coh1","ci_coh2"
+"1",0,"deepsurv_autoencoder_pData",0.539662350406683,0.0512962185420055,0.441689623507805,0.561115976479419
+"2",1,"deepsurv_autoencoder_only",NA,NA,0.6,0.62
+"3",2,"deepsurv_common_genes_only",NA,NA,0.6627,0.8173
+"4",3,"deepsurv_imp_pData",NA,NA,0.6979,0.7683
+"5",4,"deepsurv_inter_only",NA,NA,0.6795,0.7481
+"6",5,"deepsurv_pData",NA,NA,0.6464,0.7447
+"7",6,"deepsurv_intersect_pData",NA,NA,0.6795,0.7481
