@@ -2,6 +2,37 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(reshape2)
+library(readr)
+library(Biobase)
+#recodinBiobase#recoding for all  data
+#recode(
+#  all_pData_MONTH_TO_BCR$study,
+#  "Atlanta_2014_Long" = "Cohort 1",
+#  "Belfast_2018_Jain" = "Cohort 2",
+#  "CamCap_2016_Ross_Adams" = "Cohort 3",
+#  "CancerMap_2017_Luca" = "Cohort 4",
+#  "CPC_GENE_2017_Fraser" = "Cohort 5",
+#  "CPGEA_2020_Li" = "Cohort 6",
+#  "DKFZ_2018_Gerhauser" = "Cohort 7",
+#  "MSKCC_2010_Taylor" = "Cohort 8",
+#  "Stockholm_2016_Ross_Adams" = "Cohort 9",
+#  "Ribolution_prad" = "Cohort 10",
+#  "Ribolution_ukd2" = "Cohort 11"
+#)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Define Train and Test cohorts
 train_studies <- c(
@@ -70,7 +101,7 @@ test_tissue_counts[is.na(test_tissue_counts)] <- 0
 
 
 stacked_counts <- rbind(train_tissue_counts, test_tissue_counts)
-rownames(stacked_counts) <- c("Train", "Test")
+rownames(stacked_counts) <- c("Group 1", "Group2")
 
 
 bar_colors <- c("skyblue", "orange")
@@ -78,7 +109,7 @@ bar_colors <- c("skyblue", "orange")
 
 barplot(
   stacked_counts,
-  main = "Number of patients by tissue type (Training and Test Data)",
+  main = "Number of patients by tissue type )",
   xlab = "Tissue Type",
   ylab = "Number of patients",
   col = bar_colors,
@@ -90,120 +121,144 @@ barplot(
 
 ################################################################################################################
 #Boxplot for age of train and test
-# Reorder the factor levels of STUDY
 
-train_pData$AGE <- as.numeric(train_pData$AGE )
-desired_order <- c(
-  "Atlanta_2014_Long", "Belfast_2018_Jain", "CamCap_2016_Ross_Adams", 
-  "CancerMap_2017_Luca", "CPC_GENE_2017_Fraser", "CPGEA_2020_Li", 
-  "DKFZ_2018_Gerhauser", "MSKCC_2010_Taylor", "Stockholm_2016_Ross_Adams",
-  "Ribolution_prad", "Ribolution_ukd2"                                   
+# Zuordnung der Kohorten zu den gewünschten Namen
+rename_map <- c(
+  "Atlanta_2014_Long" = "Cohort 1",
+  "Belfast_2018_Jain" = "Cohort 2",
+  "CamCap_2016_Ross_Adams" = "Cohort 3",
+  "CancerMap_2017_Luca" = "Cohort 4",
+  "CPC_GENE_2017_Fraser" = "Cohort 5",
+  "CPGEA_2020_Li" = "Cohort 6",
+  "DKFZ_2018_Gerhauser" = "Cohort 7",
+  "MSKCC_2010_Taylor" = "Cohort 8",
+  "Stockholm_2016_Ross_Adams" = "Cohort 9",
+  "Ribolution_prad" = "Cohort 10",
+  "Ribolution_ukd2" = "Cohort 11"
+)
+# Sicherstellen, dass `PRE_OPERATIVE_PSA` in beiden Datensätzen denselben Typ hat
+train_pData_AGE <- train_pData
+train_pData_AGE$AGE <- as.numeric(train_pData_AGE$AGE)
+test_pData_AGE <- test_pData
+test_pData_AGE$AGE <- as.numeric(test_pData_AGE$AGE)
+# Kombinieren von Trainings- und Testdaten
+all_pData_AGE <- bind_rows(
+  train_pData_AGE %>% mutate(COHORT_TYPE = "Group 1"),  # Trainingsdaten hinzufügen
+  test_pData_AGE %>% mutate(COHORT_TYPE = "Group 2")    # Testdaten hinzufügen
 )
 
-# Update STUDY levels to the desired order
-all_pData_AGE$STUDY <- factor(all_pData_AGE$STUDY, levels = desired_order)
-
-# Ensure AGE is numeric and STUDY has a consistent factor order
-all_pData_AGE <- all_pData_AGE %>% 
+# Verarbeitung der Daten
+all_pData_AGE <- all_pData_AGE %>%
   mutate(
-    AGE = as.numeric(AGE), # Ensure AGE is numeric
-    STUDY = factor(STUDY, levels = all_studies) # Order STUDY by Train and Test groups
+    AGE = as.numeric(AGE), # Alter als numerischer Wert sicherstellen
+    STUDY = factor(STUDY, levels = desired_order, labels = rename_map) # Neue Kohortennamen anwenden
   )
 
-# Add missing studies with NA for AGE
+# Sicherstellen, dass alle Kohorten in der gewünschten Reihenfolge enthalten sind
 all_pData_AGE <- all_pData_AGE %>%
-  complete(STUDY = all_studies, fill = list(AGE = NA)) # Add missing studies
+  complete(
+    STUDY = factor(desired_order, levels = desired_order, labels = rename_map), 
+    fill = list(AGE = NA, COHORT_TYPE = "NA")
+  )
 
-# Add a new column to distinguish Train and Test cohorts
-all_pData_AGE <- all_pData_AGE %>%
-  mutate(COHORT_TYPE = case_when(
-    STUDY %in% train_studies ~ "Train", # Assign "Train" for Train studies
-    STUDY %in% test_studies ~ "Test",   # Assign "Test" for Test studies
-    TRUE ~ "Unknown"                    # Default to "Unknown" if not classified
-  ))
-
-# Create the box plot
+# Erstellung des Boxplots
 ggplot(all_pData_AGE, aes(x = STUDY, y = AGE, fill = COHORT_TYPE)) +
-  geom_boxplot(outlier.shape = NA) +  # Create box plots, without showing outliers
-  geom_jitter(aes(color = COHORT_TYPE), width = 0.2, alpha = 0.6) + # Add jittered points
-  scale_fill_manual(values = c("Train" = "skyblue", "Test" = "orange", "Unknown" = "gray")) + # Fill colors
-  scale_color_manual(values = c("Train" = "blue", "Test" = "darkorange", "Unknown" = "gray")) + # Point colors
+  geom_boxplot(outlier.shape = NA, na.rm = TRUE) +  # Boxplots ohne Outlier
+  geom_jitter(data = all_pData_AGE %>% filter(!is.na(AGE)),  # Punkte nur für nicht-NA-Werte
+              aes(color = COHORT_TYPE), width = 0.2, alpha = 0.6) +
+  scale_fill_manual(values = c("Group 1" = "skyblue", "Group 2" = "orange", "NA" = "white")) + # Farben der Füllung
+  scale_color_manual(values = c("Group 1" = "blue", "Group 2" = "darkorange")) + # Farben der Punkte
   theme_minimal() +
   labs(
-    title = "Age Distribution by Study and Cohort Type",
-    x = "Study",
+    title = "Age Distribution by Cohort",
+    x = "Cohort",
     y = "Age",
-    fill = "Cohort Type",
-    color = "Cohort Type"
+    fill = "Group",
+    color = "Group"
   ) +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1) # Rotate x-axis labels for better readability
+    axis.text.x = element_text(angle = 45, hjust = 1) # X-Achse-Beschriftung rotieren
   )
-
-
-
 
 
 ################################################################################################################
-#Stacked Bar Plot for Gleason
+# 1) Rohdaten extrahieren
+train_scores <- na.omit(train_pData$GLEASON_SCORE)
+test_scores  <- na.omit(test_pData$GLEASON_SCORE)
 
-
-
-train_gleason_counts <- table(train_pData$GLEASON_SCORE)
-test_gleason_counts <- table(test_pData$GLEASON_SCORE)
-
-
-train_percent <- 100 * train_gleason_counts / sum(train_gleason_counts)
-test_percent <- 100 * test_gleason_counts / sum(test_gleason_counts)
-
-
-all_gleason_scores <- union(names(train_gleason_counts), names(test_gleason_counts))
-
-
-train_percent <- train_percent[all_gleason_scores]
-test_percent <- test_percent[all_gleason_scores]
-
-
-train_percent[is.na(train_percent)] <- 0
-test_percent[is.na(test_percent)] <- 0
-
-
-gleason_data <- data.frame(
-  Gleason_Score = rep(all_gleason_scores, 2),
-  Percent = c(train_percent, test_percent),
-  Group = rep(c("Train", "Test"), each = length(all_gleason_scores))
+# 2) Gemeinsames Data-Frame erstellen
+gleason_df <- data.frame(
+  Score = c(train_scores, test_scores),
+  Group = c(rep("Train", length(train_scores)),
+            rep("Test",  length(test_scores)))
 )
 
+# 3) Box-Plot erstellen
+library(ggplot2)
 
-ggplot(gleason_data, aes(x = Gleason_Score, y = Percent, fill = Group)) +
-  geom_bar(stat = "identity", position = position_dodge(width = 0.8), width = 0.7) +
-  geom_text(aes(label = sprintf("%.1f%%", Percent)), 
-            position = position_dodge(width = 0.8), vjust = -0.5, size = 3) +
+ggplot(gleason_df, aes(x = Group, y = Score, fill = Group)) +
+  geom_boxplot() +
   scale_fill_manual(values = c("Train" = "skyblue", "Test" = "orange")) +
   labs(
-    title = "Percentage of Patients by Gleason Score (Training and Test Data)",
-    x = "Gleason Score",
-    y = "Percentage of Patients",
-    fill = "Group"
+    title = "Verteilung der Gleason Scores nach Train- und Test-Datensatz",
+    x = "Gruppe",
+    y = "Gleason Score"
   ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme_minimal()
 
 
+
+###################################################
+#andere darstellung wegen dem quantilproblem
+
+# 1) Rohdaten extrahieren
+train_scores <- na.omit(train_pData$GLEASON_SCORE)
+test_scores  <- na.omit(test_pData$GLEASON_SCORE)
+
+# 2) Gemeinsames Data-Frame erstellen
+gleason_df <- data.frame(
+  Score = c(train_scores, test_scores),
+  Group = c(rep("Train", length(train_scores)),
+            rep("Test",  length(test_scores)))
+)
+
+df_counts <- df_counts %>%
+  mutate(Group = if_else(Group == "Train", "Group 1", "Group 2"))
+
+gleason_df <- gleason_df %>%
+  mutate(Group = if_else(Group == "Train", "Group 1", "Group 2"))
+
+
+ggplot(df_counts, aes(x = factor(Score), y = side * prop_perc, fill = Group)) +
+  geom_col(position = "identity", width = 0.8) +
+  coord_flip() +
+  scale_y_continuous(
+    limits = c(-75, 75),  # Achsenskala von -50% bis 50%
+    breaks = seq(-75, 75, by = 10),  # Intervalle alle 10%
+    labels = function(x) paste0(abs(x), "%"),  # Prozentanzeige
+    expand = c(0, 0)  # Kein zusätzlicher Rand
+  ) +
+  scale_fill_manual(
+    values = c("Group 1" = "skyblue", "Group 2" = "orange")
+  ) +
+  labs(
+    x = "Gleason Score",
+    y = "% of Score Values",
+    title = "Gleason Scores Distribution (Group 1 vs. Group 2)"
+  ) +
+  theme_minimal()
 
 
 ################################################################################################################
 #PSA Box Plot
 
 
-
-
-
+# Sicherstellen, dass PRE_OPERATIVE_PSA numerisch ist
 train_pData$PRE_OPERATIVE_PSA <- as.numeric(train_pData$PRE_OPERATIVE_PSA)
 test_pData$PRE_OPERATIVE_PSA <- as.numeric(test_pData$PRE_OPERATIVE_PSA)
 
-
-psa_data <- rbind(
+# Kombinieren der Trainings- und Testdaten mit einer neuen Spalte "Group"
+psa_data <- bind_rows(
   train_pData %>%
     select(PRE_OPERATIVE_PSA, STUDY) %>%
     mutate(Group = "Train"),
@@ -212,44 +267,142 @@ psa_data <- rbind(
     mutate(Group = "Test")
 )
 
-# All Data
-ggplot(psa_data, aes(y = STUDY, x = PRE_OPERATIVE_PSA, fill = Group)) +
+# Definieren der Mapping-Tabelle von STUDY zu Cohort
+rename_map <- c(
+  "Atlanta_2014_Long" = "Cohort 1",
+  "Belfast_2018_Jain" = "Cohort 2",
+  "CamCap_2016_Ross_Adams" = "Cohort 3",
+  "CancerMap_2017_Luca" = "Cohort 4",
+  "CPC_GENE_2017_Fraser" = "Cohort 5",
+  "CPGEA_2020_Li" = "Cohort 6",
+  "DKFZ_2018_Gerhauser" = "Cohort 7",
+  "MSKCC_2010_Taylor" = "Cohort 8",
+  "Stockholm_2016_Ross_Adams" = "Cohort 9",
+  "Ribolution_prad" = "Cohort 10",
+  "Ribolution_ukd2" = "Cohort 11"
+)
+
+# Anwenden des Mappings und Umwandeln in einen geordneten Faktor
+psa_data <- psa_data %>%
+  mutate(
+    Cohort = recode(STUDY, !!!rename_map),
+    Cohort = factor(Cohort, levels = paste0("Cohort ", 1:11))
+  ) %>%
+  # Reihenfolge umkehren, damit Cohort 1 oben ist
+  mutate(
+    Cohort = fct_rev(Cohort)
+  )
+
+# Definieren der Farbgruppen
+psa_data <- psa_data %>%
+  mutate(
+    ColorGroup = ifelse(Cohort %in% paste0("Cohort ", 10:11), "Group 2", "Group 1")
+  )
+
+# Definieren der Farbzuweisung für die beiden Gruppen
+fill_colors <- c("Group 1" = "#00706d", "Group 2" = "yellow")
+color_colors <- c("Group 1" = "#0c4252", "Group 2" = "orange")
+
+# Erstellen des Boxplots für alle Daten mit angepasster Legende
+ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
   geom_boxplot(outlier.shape = NA) + 
-  geom_jitter(aes(color = Group), width = 0.2, alpha = 0.5) +  
-  scale_fill_manual(values = c("Train" = "skyblue", "Test" = "orange")) + 
-  scale_color_manual(values = c("Train" = "blue", "Test" = "darkorange")) + 
+  geom_jitter(aes(color = ColorGroup), width = 0.2, alpha = 0.5) +  
+  scale_fill_manual(values = fill_colors, name = "Group") + 
+  scale_color_manual(values = color_colors, name = "Group") + 
   labs(
-    title = "Distribution of PSA Values by Study and Group",
+    title = "Distribution of PSA Values by Cohort",
     x = "PSA Value",
-    y = "Study",
-    fill = "Group",
-    color = "Group"
+    y = "Cohort"
   ) +
   theme_minimal() +
-  theme(axis.text.y = element_text(angle = 0))
+  theme(
+    axis.text.y = element_text(angle = 0),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
 
-
-# Limited X Scale
-ggplot(psa_data, aes(y = STUDY, x = PRE_OPERATIVE_PSA, fill = Group)) +
+# Erstellen des Boxplots mit eingeschränktem X-Bereich (0 bis 100) und angepasster Legende
+ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
   geom_boxplot(outlier.shape = NA) +  
-  geom_jitter(aes(color = Group), width = 0.2, alpha = 0.5) + 
-  scale_fill_manual(values = c("Train" = "skyblue", "Test" = "orange")) + 
-  scale_color_manual(values = c("Train" = "blue", "Test" = "darkorange")) + 
+  geom_jitter(aes(color = ColorGroup), width = 0.2, alpha = 0.5) + 
+  scale_fill_manual(values = fill_colors, name = "Group") + 
+  scale_color_manual(values = color_colors, name = "Group") + 
   labs(
-    title = "Distribution of PSA Values by Study and Group",
+    title = "Distribution of PSA Values by Cohort",
     x = "PSA Value",
-    y = "Study",
-    fill = "Group",
-    color = "Group"
+    y = "Cohort"
   ) +
   coord_cartesian(xlim = c(0, 100)) +  
   theme_minimal() +
-  theme(axis.text.y = element_text(angle = 0))  
+  theme(
+    axis.text.y = element_text(angle = 0),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
 
 
-sum(is.na(test_pData$MONTH_TO_BCR))
-train_cohorts$Stockholm_2016_Ross_Adams$pData$GLEASON_SCORE
 
+
+# Nochmal mit log scale wegen ausreißern
+# Laden der notwendigen Bibliotheken
+library(dplyr)
+library(ggplot2)
+library(forcats)
+
+# Sicherstellen, dass PRE_OPERATIVE_PSA numerisch ist
+train_pData$PRE_OPERATIVE_PSA <- as.numeric(train_pData$PRE_OPERATIVE_PSA)
+test_pData$PRE_OPERATIVE_PSA <- as.numeric(test_pData$PRE_OPERATIVE_PSA)
+
+# Kombinieren der Trainings- und Testdaten mit einer neuen Spalte "Group"
+psa_data <- bind_rows(
+  train_pData %>%
+    select(PRE_OPERATIVE_PSA, STUDY) %>%
+    mutate(Group = "Train"),
+  test_pData %>%
+    select(PRE_OPERATIVE_PSA, STUDY) %>%
+    mutate(Group = "Test")
+)
+
+# Definieren der Mapping-Tabelle von STUDY zu Cohort
+rename_map <- c(
+  "Atlanta_2014_Long" = "Cohort 1",
+  "Belfast_2018_Jain" = "Cohort 2",
+  "CamCap_2016_Ross_Adams" = "Cohort 3",
+  "CancerMap_2017_Luca" = "Cohort 4",
+  "CPC_GENE_2017_Fraser" = "Cohort 5",
+  "CPGEA_2020_Li" = "Cohort 6",
+  "DKFZ_2018_Gerhauser" = "Cohort 7",
+  "MSKCC_2010_Taylor" = "Cohort 8",
+  "Stockholm_2016_Ross_Adams" = "Cohort 9",
+  "TCGA_PRAD" = "Cohort 10",
+  "UKD2" = "Cohort 11"
+)
+
+
+
+
+# Erstellen des Boxplots mit Log-Skala für die x-Achse
+ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
+  geom_boxplot(outlier.shape = NA) +  
+  geom_jitter(aes(color = ColorGroup), width = 0.2, alpha = 0.5) + 
+  scale_fill_manual(values = fill_colors, name = "Group") + 
+  scale_color_manual(values = color_colors, name = "Group") + 
+  scale_x_log10(
+    limits = c(1, 2000),  # Setzen der Grenzen (1 statt 0)
+    breaks = scales::trans_breaks("log10", function(x) 10^x),
+    labels = scales::trans_format("log10", scales::math_format(10^.x))
+  ) +  
+  labs(
+    title = "Distribution of PSA Values by Cohort (Log Scale)",
+    x = "PSA Value (log scale)",
+    y = "Cohort"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(angle = 0),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
 
 
 
@@ -258,17 +411,20 @@ train_cohorts$Stockholm_2016_Ross_Adams$pData$GLEASON_SCORE
 
 
 
+
+# -------------------------------------------------
+# Beispielliste, wie Du exprs_num_df aus Deinen Daten erstellst
+# (An diesem Teil ändert sich nichts Grundlegendes)
+# -------------------------------------------------
 exprs_num_df <- data.frame(
   `Exprs Source` = character(), 
   `Exprs Count` = numeric()     
 )
 
-
 for (i in 1:length(train_cohorts)) {
   study_name <- train_cohorts[[i]]$pData$STUDY[1]  
   gene_count <- nrow(train_cohorts[[i]]$exprs)     
   
-
   if (!study_name %in% exprs_num_df$`Exprs Source`) {
     exprs_num_df <- rbind(
       exprs_num_df,
@@ -281,70 +437,122 @@ for (i in 1:length(train_cohorts)) {
 }
 
 TCGA_PRAD_genes <- rownames(test_cohorts$TCGA_PRAD$exprs)
-UKD2_genes <- rownames(test_cohorts$UKD2$exprs)
-all_test_genes <- unique(c(TCGA_PRAD_genes, UKD2_genes))
-all_train_and_test_genes <- unique(c(all_test_genes, colnames(train_exprs_merged_all_genes)))
+UKD2_genes      <- rownames(test_cohorts$UKD2$exprs)
+all_test_genes  <- unique(c(TCGA_PRAD_genes, UKD2_genes))
+all_train_and_test_genes <- unique(c(all_test_genes,
+                                     colnames(train_exprs_merged_all_genes)))
 
-exprs_num_df <- rbind(exprs_num_df, data.frame(`Exprs Source` = "TCGA_PRAD_genes", `Exprs Count` = nrow(test_cohorts$TCGA_PRAD$exprs)))
-exprs_num_df <- rbind(exprs_num_df, data.frame(`Exprs Source` = "UKD2", `Exprs Count` = nrow(test_cohorts$UKD2$exprs)))
-exprs_num_df <- exprs_num_df %>%
+exprs_num_df <- rbind(
+  exprs_num_df,
+  data.frame(`Exprs Source` = "TCGA_PRAD_genes", 
+             `Exprs Count` = nrow(test_cohorts$TCGA_PRAD$exprs)),
+  data.frame(`Exprs Source` = "UKD2", 
+             `Exprs Count` = nrow(test_cohorts$UKD2$exprs))
+)
+
+exprs_num_df <- exprs_num_df %>% 
   arrange(desc(`Exprs.Count`))
-exprs_num_df <- rbind(exprs_num_df, data.frame(`Exprs Source` = "Common Genes", `Exprs Count` = ncol(train_exprs_merged_imputed)))
-exprs_num_df <- rbind(exprs_num_df, data.frame(`Exprs Source` = "Intersection", `Exprs Count` = ncol(train_exprs_merged_intersect)))
-exprs_num_df <- rbind(exprs_num_df, data.frame(`Exprs Source` = "All Training Genes", `Exprs Count` = ncol(train_exprs_merged_all_genes)))
-exprs_num_df <- rbind(exprs_num_df, data.frame(`Exprs Source` = "All Test Genes", `Exprs Count` = length(all_test_genes)))
-exprs_num_df <- rbind(exprs_num_df, data.frame(`Exprs Source` = "All Genes", `Exprs Count` = length(all_train_and_test_genes)))
-                      
-                      
 
+exprs_num_df <- rbind(
+  exprs_num_df,
+  data.frame(`Exprs Source` = "Common Genes", 
+             `Exprs Count` = ncol(train_exprs_merged_imputed)),
+  data.frame(`Exprs Source` = "Intersection", 
+             `Exprs Count` = ncol(train_exprs_merged_intersect)),
+  data.frame(`Exprs Source` = "All Training Genes", 
+             `Exprs Count` = ncol(train_exprs_merged_all_genes)),
+  data.frame(`Exprs Source` = "All Test Genes", 
+             `Exprs Count` = length(all_test_genes)),
+  data.frame(`Exprs Source` = "All Genes", 
+             `Exprs Count` = length(all_train_and_test_genes))
+)
 
+# -------------------------------------------------
+# Farbenzuordnung / Mappen der Namen
+# -------------------------------------------------
+exprs_num_df <- exprs_num_df %>%
+  mutate(
+    Color_Group = case_when(
+      row_number() >= 12 ~ "Gray",   # z.B. die Kombinations-Items
+      row_number() ==  6 ~ "Orange", # 
+      row_number() ==  1 ~ "Orange", #
+      TRUE ~ "Blue"
+    )
+  )
 
-# Invert order
-exprs_num_df$Exprs.Source <- factor(exprs_num_df$Exprs.Source, levels = rev(exprs_num_df$Exprs.Source))
+color_map <- c("Blue"   = "skyblue",
+               "Orange" = "orange",
+               "Gray"   = "gray")
 
+legend_labels <- c("Blue"   = "Group 1",
+                   "Orange" = "Group 2 ",
+                   "Gray"   = "Combinations")
 
 exprs_num_df <- exprs_num_df %>%
-mutate(
-  Color_Group = case_when(
-    row_number() >=12 ~ "Gray",         
-    row_number() == 6 ~ "Orange",   
-    row_number() == 1 ~ "Orange",  
-    TRUE ~ "Blue"                      
+  mutate(
+    Exprs.Source = case_when(
+      Exprs.Source == "Atlanta_2014_Long"          ~ "Cohort 1",
+      Exprs.Source == "Belfast_2018_Jain"          ~ "Cohort 2",
+      Exprs.Source == "CamCap_2016_Ross_Adams"     ~ "Cohort 3",
+      Exprs.Source == "CancerMap_2017_Luca"        ~ "Cohort 4",
+      Exprs.Source == "CPC_GENE_2017_Fraser"       ~ "Cohort 5",
+      Exprs.Source == "CPGEA_2020_Li"              ~ "Cohort 6",
+      Exprs.Source == "DKFZ_2018_Gerhauser"        ~ "Cohort 7",
+      Exprs.Source == "MSKCC_2010_Taylor"          ~ "Cohort 8",
+      Exprs.Source == "Stockholm_2016_Ross_Adams"  ~ "Cohort 9",
+      Exprs.Source == "TCGA_PRAD_genes"            ~ "Cohort 10",
+      Exprs.Source == "UKD2"                       ~ "Cohort 11",
+      TRUE ~ as.character(Exprs.Source)
+    )
   )
+
+# -------------------------------------------------
+# --- Sortierung und Faktorlevels ---
+# -------------------------------------------------
+# Schritt 1: Eigene Sortierspalte anlegen,
+#            Orange = ganz oben (1), Blue = 2, Gray = 3
+exprs_num_df <- exprs_num_df %>%
+  mutate(
+    SortGroup = case_when(
+      Color_Group == "Orange" ~ 1,  # soll ganz oben erscheinen
+      Color_Group == "Blue"   ~ 2,
+      Color_Group == "Gray"   ~ 3,
+      TRUE ~ 99
+    )
+  ) %>%
+  # Zuerst Orange, dann Blue, dann Gray – 
+  # innerhalb jeder Gruppe nach Count absteigend
+  arrange(SortGroup, desc(Exprs.Count))
+
+# Schritt 2: Den Faktor in **umgekehrter** Reihenfolge definieren,
+#            sodass die ersten Zeilen im Dataframe (Orange) oben im Plot stehen.
+exprs_num_df$Exprs.Source <- factor(
+  exprs_num_df$Exprs.Source, 
+  levels = rev(exprs_num_df$Exprs.Source)
 )
 
-
-
-color_map <- c("Blue" = "skyblue", "Orange" = "orange", "Gray" = "gray")
-
-
-legend_labels <- c(
-  "Blue" = "Train",   
-  "Orange" = "Test ",     
-  "Gray" = "Combinatinos"      
-)
-
+# -------------------------------------------------
+# Plot
+# -------------------------------------------------
 ggplot(exprs_num_df, aes(x = Exprs.Source, y = Exprs.Count, fill = Color_Group)) +
-  geom_bar(stat = "identity", width = 0.8) +  
-  geom_text(aes(label = Exprs.Count), hjust = -0.2, size = 3) +  
-  scale_fill_manual(
-    values = color_map,          
-    labels = legend_labels      
-  ) +
-  scale_y_continuous(limits = c(0, 65000)) + 
-  coord_flip() + 
+  geom_bar(stat = "identity", width = 0.8) +
+  geom_text(aes(label = Exprs.Count), hjust = -0.2, size = 3) +
+  scale_fill_manual(values = color_map, labels = legend_labels) +
+  scale_y_continuous(limits = c(0, 65000)) +
+  coord_flip() +
   labs(
     title = "Number of Genes by Source",
     x = "Source",
     y = "Gene Count",
-    fill = "Group"           
+    fill = "Group"
   ) +
   theme_minimal() +
   theme(
-    axis.text.y = element_text(size = 10),
-    axis.text.x = element_text(size = 10),
-    plot.title = element_text(hjust = 0.5, size = 14)
+    axis.text.y  = element_text(size = 10),
+    axis.text.x  = element_text(size = 10),
+    plot.title   = element_text(hjust = 0.5, size = 14)
   )
+
 
 
 ################################################################################################################
@@ -456,61 +664,752 @@ plot_ly(
     )
   )
 
+
+
+
+
 ################################################################################################################
-# Dot Plot with reference line
-# Beispiel-Daten
-# Daten erstellen
-data <- data.frame(
-  Kategorie = c("A", "B", "C", "D"),
-  Wert = c(10, 15, 8, 12)
+#Box Plot month to BCR
+
+# Vorbereitung der Train- und Test-Daten
+train_pData_MONTH_TO_BCR <- train_pData[, c("MONTH_TO_BCR", "STUDY", "MONTH_TO_DOD")]
+test_pData_MONTH_TO_BCR <- test_pData[, c("MONTH_TO_BCR", "STUDY", "MONTH_TO_DOD")]
+
+# Spezielle Behandlung für Ribolution_ukd2
+test_pData_MONTH_TO_BCR[test_pData_MONTH_TO_BCR$STUDY == "Ribolution_ukd2", ]$MONTH_TO_BCR <- 
+  test_pData_MONTH_TO_BCR[test_pData_MONTH_TO_BCR$STUDY == "Ribolution_ukd2", ]$MONTH_TO_DOD / 100
+
+# Gruppieren und auswählen
+train_pData_MONTH_TO_BCR <- train_pData_MONTH_TO_BCR %>%
+  select(MONTH_TO_BCR, STUDY) %>%
+  mutate(Group = "Group 1")
+
+test_pData_MONTH_TO_BCR <- test_pData_MONTH_TO_BCR %>%
+  select(MONTH_TO_BCR, STUDY) %>%
+  mutate(Group = "Group 2")
+
+# Kohorten umbenennen
+rename_cohorts <- function(df) {
+  df %>%
+    mutate(
+      STUDY = case_when(
+        STUDY == "Atlanta_2014_Long" ~ "Cohort 1",
+        STUDY == "Belfast_2018_Jain" ~ "Cohort 2",
+        STUDY == "CamCap_2016_Ross_Adams" ~ "Cohort 3",
+        STUDY == "CancerMap_2017_Luca" ~ "Cohort 4",
+        STUDY == "CPC_GENE_2017_Fraser" ~ "Cohort 5",
+        STUDY == "CPGEA_2020_Li" ~ "Cohort 6",
+        STUDY == "DKFZ_2018_Gerhauser" ~ "Cohort 7",
+        STUDY == "MSKCC_2010_Taylor" ~ "Cohort 8",
+        STUDY == "Stockholm_2016_Ross_Adams" ~ "Cohort 9",
+        STUDY == "Ribolution_prad" ~ "Cohort 10",
+        STUDY == "Ribolution_ukd2" ~ "Cohort 11 (Month to DOD|x100)",
+        TRUE ~ STUDY
+      )
+    )
+}
+
+# Kohorten in beiden Datensätzen umbenennen
+train_pData_MONTH_TO_BCR <- rename_cohorts(train_pData_MONTH_TO_BCR)
+test_pData_MONTH_TO_BCR <- rename_cohorts(test_pData_MONTH_TO_BCR)
+
+# Daten kombinieren
+bcr_data <- rbind(train_pData_MONTH_TO_BCR, test_pData_MONTH_TO_BCR)
+
+# Reihenfolge der Kohorten umkehren
+bcr_data <- bcr_data %>%
+  mutate(
+    STUDY = factor(
+      STUDY,
+      levels = rev(c(
+        "Cohort 1",
+        "Cohort 2",
+        "Cohort 3",
+        "Cohort 4",
+        "Cohort 5",
+        "Cohort 6",
+        "Cohort 7",
+        "Cohort 8",
+        "Cohort 9",
+        "Cohort 10",
+        "Cohort 11 (Month to DOD|x100)"
+      ))
+    )
+  )
+
+
+# Boxplot mit begrenzter X-Skala
+ggplot(bcr_data, aes(y = STUDY, x = MONTH_TO_BCR, fill = Group)) +
+  geom_boxplot(outlier.shape = NA) +  
+  geom_jitter(aes(color = Group), width = 0.2, alpha = 0.5) + 
+  scale_fill_manual(values = c("Group 1" = "purple", "Group 2" = "orange")) + 
+  scale_color_manual(values = c("Group 1" = "darkorchid", "Group 2" = "darkorange")) + 
+  labs(
+    title = "Distribution of Month to BCR by Cohort and Group",
+    x = "Months to BCR",
+    y = "Cohort",
+    fill = "Group",
+    color = "Group"
+  ) +
+  coord_cartesian(xlim = c(0, 180)) +  
+  theme_minimal() +
+  theme(axis.text.y = element_text(angle = 0))
+
+
+##############################
+# Aggregated for the groups
+
+# Reihenfolge der Gruppen explizit festlegen
+group_data <- group_data %>%
+  mutate(Group = factor(Group, levels = c("Group 2", "Group 1")))
+
+
+# Horizontaler Boxplot erstellen
+ggplot(group_data, aes(y = Group, x = MONTH_TO_BCR, fill = Group)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(aes(color = Group), width = 0.2, alpha = 0.5) +
+  scale_fill_manual(values = c("Group 1" = "skyblue", "Group 2" = "orange")) +
+  scale_color_manual(values = c("Group 1" = "blue", "Group 2" = "darkorange")) +
+  labs(
+    title = "Distribution of Month to BCR by Group",
+    x = "Months to BCR",
+    y = "Group",
+    fill = "Group",
+    color = "Group"
+  ) +
+  theme_minimal() +
+  theme(axis.text.y = element_text(angle = 0))
+
+
+################################################################################################################
+# Performance Box Plot
+
+
+# 1. Dummy Daata
+deepsurv                <- runif(9, min = 0.6, max = 0.8)
+random_survival_forest <- runif(9, min = 0.6, max = 0.8)
+catboost               <- runif(9, min = 0.6, max = 0.8)
+pasnet                 <- runif(9, min = 0.6, max = 0.8)
+priority_lasso         <- runif(9, min = 0.6, max = 0.8)
+penalized_cox          <- runif(9, min = 0.6, max = 0.8)
+risk_scores            <- c(0.6872, 0.6985, 0.7829, 0.6889, 0.6953, 0.6503, 0.75, 0.6834, 0.6751)
+
+# 2. Create Data frame
+model_df <- data.frame(
+  DeepSurv                = deepsurv,
+  RandomSurvivalForest    = random_survival_forest,
+  CatBoost                = catboost,
+  PasNet                  = pasnet,
+  PriorityLasso           = priority_lasso,
+  PenalizedCox            = penalized_cox,
+  RiskScores              = risk_scores,
+  row.names = paste0("Cohort ", 1:9)
 )
 
-# Hier machen wir aus "A", "B", "C", "D" gültige Faktorstufen:
-data$Kategorie <- factor(data$Kategorie, levels = c("A", "B", "C", "D"))
+# 3) In langes Format (tidy) bringen
+model_long <- model_df %>%
+  # row.names als eigene Spalte 'Cohort' sichern (damit man sie später ggf. nutzen kann)
+  tibble::rownames_to_column(var = "Cohort") %>%
+  pivot_longer(
+    cols      = -Cohort,
+    names_to  = "Model",
+    values_to = "Value"
+  )
 
-# ggplot2 laden
-library(ggplot2)
+# 4) Vertikaler Boxplot mit custom-Farben
+median_risk <- median(subset(model_long, Model == "RiskScores")$Value)
 
-# Plot erstellen
-ggplot(data, aes(y = Kategorie, x = Wert)) +
-  # Horizontale Verbindungslinie
-  geom_segment(aes(xend = 12, yend = Kategorie), 
-               linetype = "solid", color = "gray") +
+#    RiskScores wird orange, alle anderen Modelle blau
+ggplot(model_long, aes(x = Model, y = Value, fill = Model)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c(
+    "DeepSurv"             = "blue",
+    "RandomSurvivalForest" = "blue",
+    "CatBoost"             = "blue",
+    "PasNet"               = "blue",
+    "PriorityLasso"        = "blue",
+    "PenalizedCox"         = "blue",
+    "RiskScores"           = "orange"
+  )) +
+  # <-- Hier die horizontale Linie mit geom_hline
+  geom_hline(
+    yintercept = median_risk,
+    color = "darkgrey",       # Farbe für die Linie
+    linetype = "dashed", # Linientyp
+    size = 0.5             # Linienstärke
+  ) +
+  theme_minimal() +
+  labs(
+    title = "Vertikaler Boxplot: Score-Farbe vs. Andere",
+    x = "Model",
+    y = "Wert (z.B. Score)"
+  )
+
+
+################################################################################################################
+#Dot Plot with reference for Models vs score baseline
+
+# Referenz-Linie
+mean_risk   <- 0.684
+
+# 1) Dummy-Werte für 6 Modelle
+models <- c("DeepSurv", 
+            "RandomSurvivalForest", 
+            "CatBoost", 
+            "PasNet", 
+            "PriorityLasso", 
+            "PenalizedCox")
+
+set.seed(123) # Für Reproduzierbarkeit
+values <- runif(length(models), min = 0.70, max = 0.75)
+
+# 2) Data Frame erstellen
+df <- data.frame(Model = models, Wert = values)
+
+# 3) Faktor-Level (Reihenfolge) festlegen
+df$Model <- factor(df$Model, levels = models)
+
+# 4) Dot-Plot mit Referenzlinie
+ggplot(df, aes(y = Model, x = Wert)) +
   
-  # Kurze Vertikallinie am Anfang (x = Wert)
+  # (a) Graue Verbindungslinie von jedem Modell-Punkt zur blauen Referenz
+  geom_segment(
+    aes(yend = Model),     # "Model" aus df
+    xend     = mean_risk,  # "mean_risk" als konstante Variable
+    linetype = "solid", 
+    color    = "gray"
+  ) +
+  
+  # (b) Kurze Vertikallinie am Modell-Wert
   geom_segment(aes(
     x    = Wert, 
     xend = Wert,
-    # jetzt klappt as.numeric(), weil Kategorie ein Faktor ist
-    y    = as.numeric(Kategorie) - 0.1,  
-    yend = as.numeric(Kategorie) + 0.1
+    y    = as.numeric(Model) - 0.1,  
+    yend = as.numeric(Model) + 0.1
   ),
-  linetype = "solid", color = "gray") +
+  linetype = "solid", 
+  color    = "gray") +
   
-  # Kurze Vertikallinie am Ende (x = 12)
+  # (c) Kurze Vertikallinie an der Referenz (blauer Strich)
   geom_segment(aes(
-    x    = 12, 
-    xend = 12,
-    y    = as.numeric(Kategorie) - 0.1,  
-    yend = as.numeric(Kategorie) + 0.1
+    x    = mean_risk, 
+    xend = mean_risk,
+    y    = as.numeric(Model) - 0.1,  
+    yend = as.numeric(Model) + 0.1
   ),
-  linetype = "solid", color = "gray") +
+  linetype = "solid", 
+  color    = "gray") +
   
-  # Vertikale Referenzlinie
-  geom_vline(xintercept = 12, linetype = "dashed", color = "red") +
+  # (d) Vertikale blaue Referenzlinie
+  geom_vline(
+    xintercept = mean_risk, 
+    color      = "blue"
+  ) +
   
-  # Vertikale Linien an den Punkten
+  # (e) Zusätzliche (breitere) Vertikallinien an den Punkten
   geom_segment(aes(
     x    = Wert, 
-    xend = Wert, 
-    y    = as.numeric(Kategorie) - 0.2, 
-    yend = as.numeric(Kategorie) + 0.2
+    xend = Wert,
+    y    = as.numeric(Model) - 0.2, 
+    yend = as.numeric(Model) + 0.2
   ),
-  linetype = "solid", color = "grey", size = 0.4) +
+  linetype = "solid", 
+  color    = "grey", 
+  size     = 0.4) +
   
+  # X-Achsen-Anpassung
+  scale_x_continuous(
+    limits = c(0.65, 0.8),             
+    breaks = seq(0.60, 0.80, 0.05),   
+    labels = scales::label_number(accuracy = 0.001) 
+  ) +
+  
+  # Beschriftungen & Theme
   labs(
-    title = "Dot Plot mit vertikalen Linien und horizontalen Verbindungen",
-    x = "Wert",
-    y = "Kategorie"
+    title = "Model Performances vs. Risk Score Reference",
+    x     = "C-Index",
+    y     = "Model"
   ) +
   theme_minimal()
+
+
+
+
+
+
+################################################################################################################
+# Bot Plot with base model baseline vs. exprs only
+
+
+
+# 1) Baseline-Modell auf p-Daten (Referenzlinie)
+baseline_pData_model <- 0.67  # Beispielwert
+
+# 2) Die gleichen 6 Modelle wie zuvor, nur jetzt auf Gen-Daten trainiert
+models <- c("DeepSurv", 
+            "RandomSurvivalForest", 
+            "CatBoost", 
+            "PasNet", 
+            "PriorityLasso", 
+            "PenalizedCox", "Risk Score")
+
+# Dummy-Werte für die 6 Modelle (auf Gen-Daten trainiert)
+set.seed(123) # Für Reproduzierbarkeit
+values <- runif(length(models), min = 0.65, max = 0.80)
+
+# Data Frame erstellen
+df <- data.frame(
+  Model = models,
+  Wert  = values
+)
+df[7, 2] <- 0.684
+# Reihenfolge (Faktor-Level) beibehalten
+df$Model <- factor(df$Model, levels = models)
+
+# 3) Dot-Plot mit Referenzlinie (baseline_pData_model)
+ggplot(df, aes(y = Model, x = Wert)) +
+  
+  # (a) Graue Verbindungslinie vom Gen-Modell-Wert zur pData-Referenz
+  geom_segment(
+    aes(yend = Model),
+    xend     = baseline_pData_model,  # Konstanter Wert
+    linetype = "solid", 
+    color    = "gray"
+  ) +
+  
+  # (b) Kurze Vertikallinie am Gen-Modell-Wert
+  geom_segment(aes(
+    x    = Wert, 
+    xend = Wert,
+    y    = as.numeric(Model) - 0.1,  
+    yend = as.numeric(Model) + 0.1
+  ),
+  linetype = "solid", 
+  color    = "gray") +
+  
+  # (c) Kurze Vertikallinie an der Referenz (baseline_pData_model)
+  geom_segment(aes(
+    x    = baseline_pData_model,
+    xend = baseline_pData_model,
+    y    = as.numeric(Model) - 0.1,  
+    yend = as.numeric(Model) + 0.1
+  ),
+  linetype = "solid", 
+  color    = "gray") +
+  
+  # (d) Vertikale Referenzlinie (blau gestrichelt)
+  geom_vline(
+    xintercept = baseline_pData_model, 
+    color      = "blue",
+    linetype   = "dashed"
+  ) +
+  
+  # (e) Zusätzliche (breitere) Vertikallinien am Gen-Modell-Wert
+  geom_segment(aes(
+    x    = Wert, 
+    xend = Wert,
+    y    = as.numeric(Model) - 0.2, 
+    yend = as.numeric(Model) + 0.2
+  ),
+  linetype = "solid", 
+  color    = "grey", 
+  size     = 0.4) +
+  
+  # X-Achse anpassen (z.B. von 0.60 bis 0.85)
+  scale_x_continuous(
+    limits = c(0.60, 0.85),             
+    breaks = seq(0.60, 0.85, 0.05),   
+    labels = scales::label_number(accuracy = 0.001) 
+  ) +
+  
+  # Beschriftungen & Theme
+  labs(
+    title = "pData Base Model vs. Exprs Models",
+    x     = "C-Index",
+    y     = "Model"
+  ) +
+  theme_minimal()
+
+################################################################################################################
+# Bot Plot with base model baseline vs. exprs + pData
+
+
+
+# 1) Baseline-Modell auf p-Daten (Referenzlinie)
+baseline_pData_model <- 0.67  # Beispielwert
+
+# 2) Die gleichen 6 Modelle wie zuvor, nur jetzt auf Gen-Daten trainiert
+models <- c("DeepSurv", 
+            "RandomSurvivalForest", 
+            "CatBoost", 
+            "PenalizedCox")
+
+# Dummy-Werte für die 6 Modelle (auf Gen-Daten trainiert)
+
+values <- runif(length(models), min = 0.65, max = 0.80)
+
+# Data Frame erstellen
+df <- data.frame(
+  Model = models,
+  Wert  = values
+)
+
+# Reihenfolge (Faktor-Level) beibehalten
+df$Model <- factor(df$Model, levels = models)
+
+# 3) Dot-Plot mit Referenzlinie (baseline_pData_model)
+ggplot(df, aes(y = Model, x = Wert)) +
+  
+  # (a) Graue Verbindungslinie vom Gen-Modell-Wert zur pData-Referenz
+  geom_segment(
+    aes(yend = Model),
+    xend     = baseline_pData_model,  # Konstanter Wert
+    linetype = "solid", 
+    color    = "gray"
+  ) +
+  
+  # (b) Kurze Vertikallinie am Gen-Modell-Wert
+  geom_segment(aes(
+    x    = Wert, 
+    xend = Wert,
+    y    = as.numeric(Model) - 0.1,  
+    yend = as.numeric(Model) + 0.1
+  ),
+  linetype = "solid", 
+  color    = "gray") +
+  
+  # (c) Kurze Vertikallinie an der Referenz (baseline_pData_model)
+  geom_segment(aes(
+    x    = baseline_pData_model,
+    xend = baseline_pData_model,
+    y    = as.numeric(Model) - 0.1,  
+    yend = as.numeric(Model) + 0.1
+  ),
+  linetype = "solid", 
+  color    = "gray") +
+  
+  # (d) Vertikale Referenzlinie (blau gestrichelt)
+  geom_vline(
+    xintercept = baseline_pData_model, 
+    color      = "blue",
+    linetype   = "dashed"
+  ) +
+  
+  # (e) Zusätzliche (breitere) Vertikallinien am Gen-Modell-Wert
+  geom_segment(aes(
+    x    = Wert, 
+    xend = Wert,
+    y    = as.numeric(Model) - 0.2, 
+    yend = as.numeric(Model) + 0.2
+  ),
+  linetype = "solid", 
+  color    = "grey", 
+  size     = 0.4) +
+  
+  # X-Achse anpassen (z.B. von 0.60 bis 0.85)
+  scale_x_continuous(
+    limits = c(0.60, 0.85),             
+    breaks = seq(0.60, 0.85, 0.05),   
+    labels = scales::label_number(accuracy = 0.001) 
+  ) +
+  
+  # Beschriftungen & Theme
+  labs(
+    title = "pData Base Model vs. Exprs Models",
+    x     = "C-Index",
+    y     = "Model"
+  ) +
+  theme_minimal()
+
+
+
+
+
+################################################################################################################
+# Box-Plot dor model performances w.r.t the used data
+
+
+# 1) Data 
+categories <- c(
+  "Clinical Data",
+  "Common Genes",
+  "Intersection of Genes",
+  "Intersection of 
+  Genes + Clinical Data",
+  "Common Genes + 
+  Clinical Data"
+)
+
+# 2) Models
+models <- c(
+  "DeepSurv", 
+  "RandomSurvivalForest", 
+  "CatBoost", 
+  "PasNet", 
+  "PriorityLasso", 
+  "PenalizedCox"
+)
+
+# 3) Dummy data
+set.seed(123)  # Damit die Zufallswerte reproduzierbar sind
+df <- data.frame(
+  Datentyp = rep(categories, each = length(models)),
+  Modell   = rep(models, times = length(categories)),
+  CIndex   = runif(length(categories) * length(models), min = 0.65, max = 0.75)
+)
+
+# 4) Boxplot 
+ggplot(df, aes(x = Datentyp, y = CIndex)) +
+  geom_boxplot(fill = "skyblue", outlier.shape = NA) +    # Boxplots in skyblue
+  geom_jitter(width = 0.2, color = "blue", alpha = 0.7) + # Punkte in Blau
+  labs(
+    title = "Comparison of C-Index between Input Data Variations",
+    x = "Datentyp",
+    y = "C-Index"
+  ) +
+  theme_minimal(base_size = 14)
+
+
+
+
+################################################################################################################
+# Negative Bar Plot for imputed Genes
+
+
+# Definition der Variablen common_genes und intersect_genes
+common_genes <- colnames(train_exprs_merged_imputed)[-1]
+intersect_genes <- colnames(train_exprs_merged_intersect[-1])
+
+# Initialisieren der DataFrames für train und test
+train_pData <- data.frame()
+test_pData <- data.frame()
+
+# Initialisieren von missing_genes_df
+missing_genes_df <- data.frame(Kohorte = character(), Fehlende_Gene = numeric(), stringsAsFactors = FALSE)
+
+# Loop über train_cohorts
+for (cohort_name in names(train_cohorts)) { 
+  # Kombinieren der train_pData
+  train_pData <- rbind(
+    train_pData, 
+    train_cohorts[[cohort_name]]$pData[, c("AGE", "STUDY", "TISSUE", "GLEASON_SCORE", "PRE_OPERATIVE_PSA", 
+                                           "BCR_STATUS", "MONTH_TO_BCR", "DOD_STATUS", "MONTH_TO_DOD")]
+  )
+  
+  # Berechnung der fehlenden Gene
+  missing_genes <- length(setdiff(common_genes, rownames(train_cohorts[[cohort_name]]$exprs)))
+  
+  # Hinzufügen einer Zeile zu missing_genes_df
+  missing_genes_df <- rbind(
+    missing_genes_df, 
+    data.frame(Kohorte = cohort_name, Fehlende_Gene = missing_genes, stringsAsFactors = FALSE)
+  )
+}
+
+# Loop über test_cohorts
+for (cohort_name in names(test_cohorts)) { 
+  # Kombinieren der test_pData
+  test_pData <- rbind(
+    test_pData, 
+    test_cohorts[[cohort_name]]$pData[, c("AGE", "STUDY", "TISSUE", "GLEASON_SCORE", "PRE_OPERATIVE_PSA", 
+                                          "BCR_STATUS", "MONTH_TO_BCR", "DOD_STATUS", "MONTH_TO_DOD")]
+  )
+  
+  # Berechnung der fehlenden Gene
+  missing_genes <- length(setdiff(common_genes, rownames(test_cohorts[[cohort_name]]$exprs)))
+  
+  # Hinzufügen einer Zeile zu missing_genes_df
+  missing_genes_df <- rbind(
+    missing_genes_df, 
+    data.frame(Kohorte = cohort_name, Fehlende_Gene = missing_genes, stringsAsFactors = FALSE)
+  )
+}
+
+# Berechnung der fehlenden Gene für TCGA_PRAD und UKD2
+missing_genes_TCGA_PRAD_intersect <- length(setdiff(intersect_genes, rownames(test_cohorts[["TCGA_PRAD"]]$exprs)))
+missing_genes_UKD2_intersect <- length(setdiff(intersect_genes, rownames(test_cohorts[["UKD2"]]$exprs)))
+
+# Hinzufügen der Zeilen zu missing_genes_df
+missing_genes_df <- rbind(
+  missing_genes_df, 
+  data.frame(Kohorte = "TCGA_PRAD to Intersect", Fehlende_Gene = missing_genes_TCGA_PRAD_intersect, stringsAsFactors = FALSE)
+)
+missing_genes_df <- rbind(
+  missing_genes_df, 
+  data.frame(Kohorte = "UKD2 to Intersect", Fehlende_Gene = missing_genes_UKD2_intersect, stringsAsFactors = FALSE)
+)
+
+# Hinzufügen eines Mappings basierend auf den Kohortennamen
+rename_map <- c(
+  "Atlanta_2014_Long" = "Cohort 1",
+  "Belfast_2018_Jain" = "Cohort 2",
+  "CamCap_2016_Ross_Adams" = "Cohort 3",
+  "CancerMap_2017_Luca" = "Cohort 4",
+  "CPC_GENE_2017_Fraser" = "Cohort 5",
+  "CPGEA_2020_Li" = "Cohort 6",
+  "DKFZ_2018_Gerhauser" = "Cohort 7",
+  "MSKCC_2010_Taylor" = "Cohort 8",
+  "Stockholm_2016_Ross_Adams" = "Cohort 9",
+  "TCGA_PRAD" = "Cohort 10",
+  "UKD2" = "Cohort 11",
+  "TCGA_PRAD to Intersect" = "Cohort 10 (Inters.)",
+  "UKD2 to Intersect" = "Cohort 11 (Inters.)"
+)
+
+# Erstellen der Spalte für umbenannte Kohorten
+missing_genes_df$Cohort <- rename_map[missing_genes_df$Kohorte]
+
+# Fehlende Werte in Cohort-Namen entfernen
+missing_genes_df <- missing_genes_df[!is.na(missing_genes_df$Cohort), ]
+
+# Reihenfolge der Balken festlegen
+cohort_order <- c(
+  "Cohort 1", "Cohort 2", "Cohort 3", "Cohort 4", "Cohort 5", 
+  "Cohort 6", "Cohort 7", "Cohort 8", "Cohort 9", "Cohort 10", "Cohort 10 (Inters.)", 
+  "Cohort 11", "Cohort 11 (Inters.)"
+)
+
+missing_genes_df$Cohort <- factor(missing_genes_df$Cohort, levels = cohort_order)
+
+
+
+# Sicherstellen, dass alle Werte in Cohort definiert sind
+missing_genes_df <- missing_genes_df %>%
+  filter(Cohort %in% cohort_order) %>%
+  mutate(
+    ColorGroup = ifelse(
+      Cohort %in% c("Cohort 10", "Cohort 11", "Cohort 10 (Inters.)", "Cohort 11 (Inters.)"),
+      "Group 2",  # Orange für diese Kohorten
+      "Group 1"   # Skyblue für die anderen
+    )
+  )
+
+
+
+library(ggplot2)
+library(dplyr)
+
+# Erstellung eines negativen Bar Charts
+ggplot(missing_genes_df, aes(x = Cohort, y = -Fehlende_Gene, fill = ColorGroup)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(
+    values = c("Group 1" = "skyblue", "Group 2" = "orange")  # Farben zuweisen
+  ) +
+  scale_y_continuous(
+    limits = c(-2500, 0),  # Skala bis -2500
+    breaks = seq(-2500, 0, by = 500),  # Breakpoints alle 500
+    labels = abs(seq(-2500, 0, by = 500))  # Absolutwerte anzeigen
+  ) +
+  labs(
+    title = "Genes to Impute by Cohort",
+    x = "Cohorts",
+    y = "Number of Missing Genes"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  geom_text(aes(label = Fehlende_Gene), vjust = 1.5, color = "black") 
+
+
+
+
+################################################################################################################
+# % of Endpoint reached per group
+all_pData_BCR_STATUS <- rbind(train_pData[, c("BCR_STATUS", "DOD_STATUS", "STUDY")], (test_pData[, c("BCR_STATUS", "DOD_STATUS","STUDY")]))
+all_pData_BCR_STATUS[is.na(all_pData_BCR_STATUS$BCR_STATUS),"BCR_STATUS"] <- all_pData_BCR_STATUS[is.na(all_pData_BCR_STATUS$BCR_STATUS),]$"DOD_STATUS"
+
+
+# Mapping für Umbenennung
+rename_map <- c(
+  "Atlanta_2014_Long" = "Cohort 1",
+  "Belfast_2018_Jain" = "Cohort 2",
+  "CamCap_2016_Ross_Adams" = "Cohort 3",
+  "CancerMap_2017_Luca" = "Cohort 4",
+  "CPC_GENE_2017_Fraser" = "Cohort 5",
+  "CPGEA_2020_Li" = "Cohort 6",
+  "DKFZ_2018_Gerhauser" = "Cohort 7",
+  "MSKCC_2010_Taylor" = "Cohort 8",
+  "Stockholm_2016_Ross_Adams" = "Cohort 9",
+  "Ribolution_prad" = "Cohort 10",
+  "Ribolution_ukd2" = "Cohort 11 (DOD)"
+)
+
+# Umbenennen der Studien
+all_pData_BCR_STATUS <- all_pData_BCR_STATUS %>%
+  mutate(STUDY = rename_map[STUDY])
+
+# Berechnungen: Anzahl BCR_STATUS == TRUE und Gesamtanzahl pro Studie
+result <- all_pData_BCR_STATUS %>%
+  group_by(STUDY) %>%
+  summarise(
+    Total_Patients = n(),
+    BCR_True_Count = sum(BCR_STATUS, na.rm = TRUE)
+  ) %>%
+  mutate(BCR_True_Proportion = BCR_True_Count / Total_Patients)
+
+# Farbzuordnung: Kohorte 10 und 11 -> Orange, andere -> Skyblue
+result <- result %>%
+  mutate(
+    Group = ifelse(STUDY %in% c("Cohort 10", "Cohort 11"), "Group 2", "Group 1"),
+    Color = ifelse(Group == "Group 2", "orange", "skyblue"),
+    # Faktor mit expliziter Reihenfolge
+    STUDY = factor(STUDY, levels = paste("Cohort", 1:11))
+  )
+
+# Balkendiagramm erstellen
+ggplot(result, aes(x = STUDY, y = BCR_True_Proportion, fill = Group)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("skyblue", "orange"), labels = c("Group 1", "Group 2")) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    title = "% of BCR per cohort",
+    x = "Cohort",
+    y = "BCR",
+    fill = "Gruppe"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+
+################################################################################################################
+#Survival Kurve
+
+ggplot(missing_genes_df, aes(x = Cohort, y = MissingGenes, fill = ColorGroup)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("skyblue" = "skyblue", "orange" = "orange")) +
+  labs(
+    x = "Cohorts",
+    y = "Number of Missing Genes",
+    title = "Genes to Impute by Cohort"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# Beispiel-Daten
+df <- data.frame(
+  Zeit = c(0, 1, 2, 3, 4, 5),
+  Modell1 = c(1.0, 0.8, 0.6, 0.4, 0.2, 0.0),
+  Modell2 = c(1.0, 0.85, 0.65, 0.45, 0.25, 0.0)
+)
+
+# Umformen in langes Format
+df_long <- pivot_longer(df, cols = c("Modell1", "Modell2"),
+                        names_to = "Modell", values_to = "Survival")
+
+ggplot(df_long, aes(x = Zeit, y = Survival, color = Modell)) +
+  geom_step(size = 1.2) +  # Treppenfunktionen für Survival-Kurven
+  labs(title = "Survival-Kurven für zwei Modelle",
+       x = "Zeit",
+       y = "Überlebenswahrscheinlichkeit") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+
