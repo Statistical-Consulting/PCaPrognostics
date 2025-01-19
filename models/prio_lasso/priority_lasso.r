@@ -117,8 +117,8 @@ for (i in seq_along(outer_splits$splits)) {
 }
 
 print(outer_perf)
-write.csv(outer_perf, "prioLasso_100_300.csv")
+write.csv(outer_perf, "prioLasso_100_300_intercepts.csv")
 
 
 final_model <- do_resampling(data, blocks = blocks)
-save(final_model,file="prioLasso_100_300.Rdata")
+save(final_model,file="prioLasso_100_300_intercepts.Rdata")

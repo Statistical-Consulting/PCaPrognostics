@@ -57,7 +57,7 @@ aggregate_results <- function(results) {
 
 combine_results <- function(results_nstd, results_test){
     df <- merge(results_nstd, results_test)
-    df[, 1] <- NULL
+    # df[, 1] <- NULL
     return(df)
 }
 

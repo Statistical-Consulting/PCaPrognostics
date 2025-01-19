@@ -108,7 +108,7 @@ test_perf_all_models <- function(model_path){
 
         y1 <- Surv(data_co1$MONTH_TO_BCR, data_co1$BCR_STATUS)
         data_co1 = as.matrix(data_co1 %>% select(-c(MONTH_TO_BCR, BCR_STATUS)))
-
+        print(sum(rowSums(is.na(data_co1)) == ncol(data_co1)))
         # -------------------- load coh 2
         exprs2 <- read_csv('data\\cohort_data\\exprs\\test_cohort_2.csv', lazy = TRUE)
         exprs2[, 1] <- NULL
