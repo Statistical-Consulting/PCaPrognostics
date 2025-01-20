@@ -177,3 +177,106 @@ final_model <- do_resampling(anec_data)
 # data_cmplt <- as.data.frame(data_cmplt %>% select(-c(X)))
 # final_model <- do_resampling(data_cmplt)
 save(final_model,file="pen_autoenc_paper.Rdata")
+
+
+# # ------------------------------------------------------------- 
+# Survival Kurve
+# Load the saved model
+# Load required libraries
+# Load required libraries
+library(glmnet)
+library(survival)
+library(dplyr)
+library(ggplot2)
+
+# Trainingsdaten laden für baseline hazard
+train_data <- read.csv('data/merged_data/pData/imputed/merged_imputed_pData.csv')
+train_data$MONTH_TO_BCR <- as.numeric(as.character(train_data$MONTH_TO_BCR))
+train_data$MONTH_TO_BCR[train_data$MONTH_TO_BCR == 0] <- 0.0001
+train_data$BCR_STATUS <- as.numeric(as.logical(train_data$BCR_STATUS))
+
+# Testdaten vorbereiten
+pen_cox_test_pData_cohort1 <- as.data.frame(read_csv('data/cohort_data/pData/imputed/low_risk_pData_test_cohort2.csv', lazy = TRUE))[,c("AGE", "TISSUE", "GLEASON_SCORE", "PRE_OPERATIVE_PSA")]
+pen_cox_test_pData_cohort1$TISSUE <- "Fresh_frozen"
+pen_cox_test_common_genes_cohort1 <- as.data.frame(read_csv('data/cohort_data/exprs/common_genes_test_imputed_cohort2_low_risk.csv', lazy = TRUE))
+
+# Manuelles One-hot encoding für TISSUE
+tissue_encoded <- data.frame(
+  TISSUE_FFPE = 0,
+  TISSUE_Fresh_frozen = 1,
+  TISSUE_Snap_frozen = 0
+)
+
+# Numerische klinische Daten
+clinical_num <- pen_cox_test_pData_cohort1 %>% 
+  select(AGE, GLEASON_SCORE, PRE_OPERATIVE_PSA)
+
+# Alles zusammenführen
+X_test <- cbind(clinical_num, tissue_encoded, pen_cox_test_common_genes_cohort1)
+
+# In Matrix umwandeln
+X_test_matrix <- as.matrix(X_test[,-7])
+
+# Load the saved model
+loaded_objects <- load("models/pen_cox/pen_lasso_exprs_imputed_pData.Rdata")
+
+
+
+# Angepasste Survival-Kurven Vorhersage-Funktion für cv.glmnet
+predict_survival_curve <- function(cv_fit, X_test, train_time, train_status, max_time = 120) {
+  # Get risk scores using lambda.min
+  risk_scores <- predict(cv_fit, X_test, s = "lambda.min", type = "link")
+  
+  # Create baseline hazard using training data
+  base_surv <- survfit(Surv(train_time, train_status) ~ 1)
+  
+  # Get time points and cumulative hazard
+  times <- base_surv$time
+  cumhaz <- base_surv$cumhaz
+  
+  # Calculate survival probabilities for each patient
+  surv_matrix <- exp(-outer(exp(risk_scores), cumhaz))
+  
+  # Calculate mean survival
+  mean_surv <- colMeans(surv_matrix)
+  
+  # Create dataframe
+  surv_df <- data.frame(
+    time = times,
+    survival = mean_surv
+  )
+  
+  return(surv_df)
+}
+
+# Survival curves berechnen und speichern
+surv_data <- predict_survival_curve(final_model, X_test_matrix, 
+                                    train_time = train_data$MONTH_TO_BCR,
+                                    train_status = train_data$BCR_STATUS)
+avrg_survival_data <- data.frame(
+  time = surv_data$time,
+  survival = colMeans(surv_data[, 2:649], na.rm = TRUE)
+)
+
+avrg_survival_data_cohort1_low_risk <- avrg_survival_data
+avrg_survival_data_cohort1_high_risk <- avrg_survival_data
+avrg_survival_data_cohort2_low_risk <- avrg_survival_data
+avrg_survival_data_cohort2_high_risk <- avrg_survival_data
+
+
+all_avrg_survival_data <- cbind(avrg_survival_data_cohort1_low_risk, avrg_survival_data_cohort1_high_risk$survival,
+                                avrg_survival_data_cohort2_low_risk$survival, avrg_survival_data_cohort2_high_risk$survival)
+
+
+colnames(all_avrg_survival_data) <- c("time", "cohort1_low_risk", "cohort1_high_risk", "cohort2_low_risk", "cohort2_high_risk")
+write.csv(all_avrg_survival_data, "data/predicted_survival_curves_coxph.csv", row.names = FALSE)
+
+# Plot erstellen
+ggplot(surv_data, aes(x = time, y = survival)) +
+  geom_step() +
+  theme_minimal() +
+  labs(x = "Time (months)", 
+       y = "Survival Probability",
+       title = "Predicted Survival Curve for Test Cohort") +
+  ylim(0, 1)
+ggsave("predicted_survival_curve.pdf", width = 10, height = 6)
