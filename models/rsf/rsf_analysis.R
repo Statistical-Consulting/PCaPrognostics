@@ -73,7 +73,7 @@ load_feat_imp <- function(final_model){
     feature = names(feature_imp),
     value = as.numeric(feature_imp)
     )
-    importance_df <- importance_df[order(-importance_df$value), ]
+    #importance_df <- importance_df[order(-importance_df$value), ]
     importance_df <- importance_df %>% filter(value > 0)
     return(importance_df)
 }
@@ -82,13 +82,17 @@ feat_imp_all_models <- function(model_path){
     files <- list.files(model_path)
     combined_data <- lapply(files, function(file) {
         print(file)
-        load(paste0(model_path, "\\", file))
-        # Perform regex searches
         contains_pData <- grepl("pData", file, ignore.case = TRUE)
         contains_intersection <- grepl("inter|intersection", file, ignore.case = TRUE)
         contains_imputed <- grepl("imp|imputed|common", file, ignore.case = TRUE)
         contains_aenc <- grepl("aenc|auto|autoenc", file, ignore.case = TRUE)
         contains_scores <- grepl("score|scores", file, ignore.case = TRUE)
+
+        if (contains_aenc | contains_imputed |contains_intersection){
+        }
+        else{
+
+        load(paste0(model_path, "\\", file))
 
         # Create a vector of components based on conditions
         components <- c(
@@ -106,9 +110,10 @@ feat_imp_all_models <- function(model_path){
         imps$dataset <- dataset
         imps$model <- 'rsf'#gsub(".Rdata", "", basename(file))
         return(imps)
+        }
 
   }) %>% bind_rows()
-  combined_data[, 1] <- NULL
+  #combined_data[, 1] <- NULL
 
   return(combined_data)
 }
@@ -205,23 +210,23 @@ test_perf_all_models <- function(model_path){
 
 # ------------------------------------------------------------------------------------------------------------------
 # --------------------- load and inspect performance
-results_path_nstd <- "models\\rsf\\results\\results"
-combined_results_nstd <- load_all_results(results_path = results_path_nstd)
-split_results_path <- 'results_modelling_splits\\splits_rsf.csv'
-write.csv(combined_results_nstd, split_results_path)
+# results_path_nstd <- "models\\rsf\\results\\results"
+# combined_results_nstd <- load_all_results(results_path = results_path_nstd)
+# split_results_path <- 'results_modelling_splits\\splits_rsf.csv'
+# write.csv(combined_results_nstd, split_results_path)
 
 
-combined_results_aggr <- aggregate_results(combined_results_nstd)
-print(combined_results_aggr)
+# combined_results_aggr <- aggregate_results(combined_results_nstd)
+# print(combined_results_aggr)
 
-# --------------------- Get test performances
-test_perf <- test_perf_all_models("models\\rsf\\results\\model")
-final_results <- combine_results(combined_results_aggr, test_perf)
+# # --------------------- Get test performances
+# test_perf <- test_perf_all_models("models\\rsf\\results\\model")
+# final_results <- combine_results(combined_results_aggr, test_perf)
 
-final_results_path <- 'results_modelling_ovs\\ov_rsf.csv'
-write.csv(final_results, final_results_path)
+# final_results_path <- 'results_modelling_ovs\\ov_rsf.csv'
+# write.csv(final_results, final_results_path)
 
-# feat_imps <- feat_imp_all_models("models\\rsf\\results\\model")
-# print(feat_imps)
-# feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_rsf.csv'
-# write.csv(combined_results_aggr, feat_imp_path)
+feat_imps <- feat_imp_all_models("models\\rsf\\results\\model")
+print(feat_imps)
+feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_rsf.csv'
+write.csv(feat_imps, feat_imp_path)

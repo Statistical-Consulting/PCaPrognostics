@@ -81,7 +81,7 @@ def load_all_results(results_path):
 # TODO: Ergbebnisse aus Test und Nested reampling kombiniernen
 def combine_results(results_nstd, results_test):
     if results_test is not None: 
-        combined_results = results_nstd.merge(results_test, left_on = 'model', right_on = 'model')
+        combined_results = results_nstd.merge(results_test, how = "left", left_on = 'model', right_on = 'model')
     else: 
         combined_results = results_nstd
         combined_results.loc[: , 'ci_coh1'] = None

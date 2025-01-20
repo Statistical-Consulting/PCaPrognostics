@@ -46,8 +46,10 @@ load_feat_imp <- function(model_path){
     coefs <- coef(final_model)
     coefs_vals <- coefs[[1]]
     coefs_df <- data.frame(feature = names(coefs_vals), value = as.numeric(coefs_vals))
-    non_zero_coefs <- coefs_df %>% filter(value > 0)  # Extract non-zero coefficients
+    non_zero_coefs <- coefs_df %>% filter(value != 0)  # Extract non-zero coefficients
     #print(final_model.nzero)
+    non_zero_coefs$dataset = "block_data"
+    non_zero_coefs$model = "prioLasso"
     return(non_zero_coefs)
 }
 
@@ -148,32 +150,26 @@ test_perf_all_models <- function(model_path){
 
 # ------------------------------------------------------------------------------------------------------------------
 # --------------------- load and inspect performance
-results_path_nstd <- "models\\prio_lasso\\results\\results"
-combined_results_nstd <- load_all_results(results_path = results_path_nstd)
-split_results_path <- 'results_modelling_splits\\ov_prio.csv'
-write.csv(combined_results_nstd, split_results_path)
+# results_path_nstd <- "models\\prio_lasso\\results\\results"
+# combined_results_nstd <- load_all_results(results_path = results_path_nstd)
+# split_results_path <- 'results_modelling_splits\\splits_prio.csv'
+# write.csv(combined_results_nstd, split_results_path)
 
 
-combined_results_aggr <- aggregate_results(combined_results_nstd)
-print(combined_results_aggr)
+# combined_results_aggr <- aggregate_results(combined_results_nstd)
+# print(combined_results_aggr)
 
-test_perf <- test_perf_all_models("models\\prio_lasso\\results\\model")
-final_results <- combine_results(combined_results_aggr, test_perf)
+# test_perf <- test_perf_all_models("models\\prio_lasso\\results\\model")
+# final_results <- combine_results(combined_results_aggr, test_perf)
 
-final_results_path <- 'results_modelling_ovs\\splits_prio.csv'
-write.csv(final_results, final_results_path)
-
-# ACTUALLY: SAVE COMBINED RESULTS TO CSV
-#final_results_path <- 'results_modelling\\pen_cox.csv'
-#write.csv(combined_results_aggr, final_results_path)
-#results_testing_1 <- read.csv("models/pen_cox/results_testing/co1.csv")
-#results_testing_2 <- read.csv("models/pen_cox/results_testing/co1.csv")
-#combine_results <- combine_results(combined_results_aggr, results_testing_1, results_testing_2)
-
+# final_results_path <- 'results_modelling_ovs\\ov_prio.csv'
+# write.csv(final_results, final_results_path)
 
 #---------------------- get feature imp 
 #best_model_csv <- combined_results_aggr[combined_results_aggr$mean == max(combined_results_aggr$mean), 'model']
 #best_model_rdata <- gsub("\\.csv$", ".Rdata", best_model_csv)
-model_path <- paste0("models\\prio_lasso\\results\\model\\", 'prioLasso_100_300.Rdata')
+model_path <- paste0("models\\prio_lasso\\results\\model\\", 'prioLasso_100_300_intercepts.Rdata')
 coefs <- load_feat_imp(model_path)
 print(coefs)
+feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_prio.csv'
+write.csv(coefs, feat_imp_path)
