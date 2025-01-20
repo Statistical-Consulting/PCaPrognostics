@@ -932,6 +932,72 @@ ggplot(df, aes(y = Model, x = Wert)) +
   ) +
   theme_minimal()
 
+#---------------------------------------------------
+#---------------------------------------------------
+
+
+
+
+
+# Referenz-Linie
+mean_risk <- 0.684
+
+# Dummy-Werte für 6 Modelle (zwei Werte pro Modell)
+models <- c("DeepSurv", "RandomSurvivalForest", "CatBoost", "PasNet", "PriorityLasso", "PenalizedCox")
+
+values_1 <- runif(length(models), min = 0.70, max = 0.75)
+values_2 <- runif(length(models), min = 0.70, max = 0.75)
+
+# Data Frame erstellen
+df <- data.frame(
+  Model = rep(models, each = 2), # Jedes Modell doppelt, einmal pro Wert
+  Wert = c(values_1, values_2),  # Beide Werte einfügen
+  Gruppe = rep(c("A", "B"), times = length(models)) # Gruppe für Werte (A/B)
+)
+
+# Faktor-Level (Reihenfolge) festlegen
+df$Model <- factor(df$Model, levels = models)
+
+# Dot-Plot mit Referenzlinie und zwei Punkten pro Modell
+library(ggplot2)
+
+ggplot(df, aes(y = Model, x = Wert, group = Gruppe)) +
+  
+  # Graue Verbindungslinien zur blauen Referenz
+  geom_segment(aes(yend = Model), xend = mean_risk, linetype = "solid", color = "gray") +
+  
+  # Vertikallinien an den Modellwerten
+  geom_segment(aes(
+    x = Wert, 
+    xend = Wert,
+    y = as.numeric(Model) - 0.2, 
+    yend = as.numeric(Model) + 0.2
+  ),
+  linetype = "solid", 
+  color = "gray", 
+  size = 0.4) +
+  
+  # Blaue Referenzlinie
+  geom_vline(xintercept = mean_risk, color = "blue") +
+  
+  # Punkte für die zwei Werte je Modell
+  geom_point(aes(color = Gruppe), size = 3) +
+  
+  # X-Achsen-Anpassung
+  scale_x_continuous(
+    limits = c(0.65, 0.8),             
+    breaks = seq(0.60, 0.80, 0.05),   
+    labels = scales::label_number(accuracy = 0.001) 
+  ) +
+  
+  # Beschriftungen & Theme
+  labs(
+    title = "Model Performances with Two Values vs. Risk Score Reference",
+    x = "C-Index",
+    y = "Model",
+    color = "Group"
+  ) +
+  theme_minimal()
 
 
 
