@@ -1,5 +1,5 @@
 ,model,mean,sd,ci_coh1,ci_coh2
-0,deepsurv_autoencoder_final_cv_exprs_only,0.6187560563125731,0.1021346434822914,,
+0,deepsurv_autoencoder_final_cv_exprs_only,0.6187560563125731,0.1021346434822914,0.5313399224321281,0.5708601163146617
 1,deepsurv_autoencoder_pData,0.5396623504066832,0.0512962185420055,0.6267358939071688,0.45974900520355066
 2,deepsurv_result_common_genes,0.6862054161722423,0.0436655910990028,,
 3,deepsurv_result_common_genes_and_pData.csv,,,,
