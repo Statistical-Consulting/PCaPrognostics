@@ -180,14 +180,10 @@ save(final_model,file="pen_autoenc_paper.Rdata")
 
 
 # # ------------------------------------------------------------- 
-# Survival Kurve
-# Load the saved model
-# Load required libraries
-# Load required libraries
-library(glmnet)
+
 library(survival)
-library(dplyr)
-library(ggplot2)
+
+
 
 # Trainingsdaten laden für baseline hazard
 train_data <- read.csv('data/merged_data/pData/imputed/merged_imputed_pData.csv')
