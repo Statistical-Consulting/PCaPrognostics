@@ -43,6 +43,15 @@ common_genes_cohort2_high_risk <- common_genes_cohort2[rownames(common_genes_coh
 intersect_genes_cohort1 <- intersect_genes[grep("test_cohort_1", rownames(intersect_genes)), ]
 intersect_genes_cohort2 <- intersect_genes[grep("test_cohort_2", rownames(intersect_genes)), ]
 
+# Split intersect_genes risk based
+intersect_genes_cohort1_low_risk <- intersect_genes_cohort1[rownames(intersect_genes_cohort1) %in% low_risk_cohort1$...1, ]
+intersect_genes_cohort1_high_risk <- intersect_genes_cohort1[rownames(intersect_genes_cohort1) %in% high_risk_cohort1$...1, ]
+intersect_genes_cohort2_low_risk <- intersect_genes_cohort2[rownames(intersect_genes_cohort2) %in% low_risk_cohort2$...1, ]
+intersect_genes_cohort2_high_risk <- intersect_genes_cohort2[rownames(intersect_genes_cohort2) %in% high_risk_cohort2$...1, ]
+
+
+
+
 # Split all_genes
 all_genes_cohort1 <- all_genes[grep("test_cohort_1", rownames(all_genes)), ]
 all_genes_cohort2 <- all_genes[grep("test_cohort_2", rownames(all_genes)), ]
@@ -79,6 +88,14 @@ write.csv(common_genes_cohort2_high_risk, file.path(".", "data", "cohort_data", 
 # Save intersect_genes splits
 write.csv(intersect_genes_cohort1, file.path(".", "data", "cohort_data", "exprs", "intersect_test_genes_imputed_cohort1.csv"))
 write.csv(intersect_genes_cohort2, file.path(".", "data", "cohort_data", "exprs", "intersect_test_genes_imputed_cohort2.csv"))
+
+# Save common_genes risk based splits
+write.csv(intersect_genes_cohort1_low_risk, file.path(".", "data", "cohort_data", "exprs", "intersect_genes_test_cohort1_low_risk.csv"))
+write.csv(intersect_genes_cohort1_high_risk, file.path(".", "data", "cohort_data", "exprs", "intersect_genes_test_cohort1_high_risk.csv"))
+write.csv(intersect_genes_cohort2_low_risk, file.path(".", "data", "cohort_data", "exprs", "intersect_genes_test_cohort2_low_risk.csv"))
+write.csv(intersect_genes_cohort2_high_risk, file.path(".", "data", "cohort_data", "exprs", "intersect_genes_test_cohort2_high_risk.csv"))
+
+
 
 # Save all_genes splits
 write.csv(all_genes_cohort1, file.path(".", "data", "cohort_data", "exprs", "all_genes_test_cohort1.csv"))
