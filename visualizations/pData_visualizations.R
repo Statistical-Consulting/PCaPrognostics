@@ -88,6 +88,7 @@ train_exprs_merged_all_genes<- exprs <- as.data.frame(read_csv('data/merged_data
 
 train_tissue_counts <- table(train_pData$TISSUE)
 test_pData$TISSUE[test_pData$TISSUE == "fresh-frozen"] <- "Fresh_frozen"
+
 test_tissue_counts <- table(test_pData$TISSUE)
 
 
@@ -101,28 +102,28 @@ test_tissue_counts[is.na(test_tissue_counts)] <- 0
 
 
 stacked_counts <- rbind(train_tissue_counts, test_tissue_counts)
-rownames(stacked_counts) <- c("Group 1", "Group2")
+rownames(stacked_counts) <- c("Group A", "Group B")
 
 
-bar_colors <- c("skyblue", "orange")
+bar_colors <- c("#ffcd66", "#00706d" )
 
 
 barplot(
   stacked_counts,
-  main = "Number of patients by tissue type )",
+  main = "Number of patients by tissue type",
   xlab = "Tissue Type",
   ylab = "Number of patients",
   col = bar_colors,
   names.arg = c("Fresh Frozen", "FFPE", "Snap Frozen"),
-  legend.text = rownames(stacked_counts), # Legende für Train/Test
-  args.legend = list(x = "topright") # Position der Legende
+  legend.text = rownames(stacked_counts),
+  args.legend = list(x = "topright") 
 )
 
 
 ################################################################################################################
 #Boxplot for age of train and test
 
-# Zuordnung der Kohorten zu den gewünschten Namen
+# Mapping der STUDY-Namen zu Kohortennamen
 rename_map <- c(
   "Atlanta_2014_Long" = "Cohort 1",
   "Belfast_2018_Jain" = "Cohort 2",
@@ -136,29 +137,35 @@ rename_map <- c(
   "Ribolution_prad" = "Cohort 10",
   "Ribolution_ukd2" = "Cohort 11"
 )
-# Sicherstellen, dass `PRE_OPERATIVE_PSA` in beiden Datensätzen denselben Typ hat
-train_pData_AGE <- train_pData
-train_pData_AGE$AGE <- as.numeric(train_pData_AGE$AGE)
-test_pData_AGE <- test_pData
-test_pData_AGE$AGE <- as.numeric(test_pData_AGE$AGE)
-# Kombinieren von Trainings- und Testdaten
+
+# Definieren der gewünschten Reihenfolge der Kohorten
+desired_order <- rename_map
+
+# Sicherstellen, dass `AGE` numerisch ist
+train_pData_AGE <- train_pData %>%
+  mutate(AGE = as.numeric(AGE))
+
+test_pData_AGE <- test_pData %>%
+  mutate(AGE = as.numeric(AGE))
+
+# Kombinieren von Trainings- und Testdaten mit Zuordnung zu Gruppen
 all_pData_AGE <- bind_rows(
-  train_pData_AGE %>% mutate(COHORT_TYPE = "Group 1"),  # Trainingsdaten hinzufügen
-  test_pData_AGE %>% mutate(COHORT_TYPE = "Group 2")    # Testdaten hinzufügen
+  train_pData_AGE %>% mutate(COHORT_TYPE = "Group A"),  # Trainingsdaten hinzufügen
+  test_pData_AGE %>% mutate(COHORT_TYPE = "Group B")    # Testdaten hinzufügen
 )
 
-# Verarbeitung der Daten
+# Verarbeitung der kombinierten Daten
 all_pData_AGE <- all_pData_AGE %>%
   mutate(
-    AGE = as.numeric(AGE), # Alter als numerischer Wert sicherstellen
-    STUDY = factor(STUDY, levels = desired_order, labels = rename_map) # Neue Kohortennamen anwenden
-  )
-
-# Sicherstellen, dass alle Kohorten in der gewünschten Reihenfolge enthalten sind
-all_pData_AGE <- all_pData_AGE %>%
+    AGE = as.numeric(AGE),                           # Sicherstellen, dass AGE numerisch ist
+    STUDY = rename_map[STUDY]                         # Umbenennen der STUDY-Namen zu Kohortennamen
+  ) %>%
+  mutate(
+    STUDY = factor(STUDY, levels = desired_order)     # Festlegen der Faktorstufen entsprechend der gewünschten Reihenfolge
+  ) %>%
   complete(
-    STUDY = factor(desired_order, levels = desired_order, labels = rename_map), 
-    fill = list(AGE = NA, COHORT_TYPE = "NA")
+    STUDY = factor(desired_order, levels = desired_order),  # Sicherstellen, dass alle Kohortenstufen vorhanden sind
+    fill = list(AGE = NA, COHORT_TYPE = "NA")              # Auffüllen fehlender Werte
   )
 
 # Erstellung des Boxplots
@@ -166,8 +173,13 @@ ggplot(all_pData_AGE, aes(x = STUDY, y = AGE, fill = COHORT_TYPE)) +
   geom_boxplot(outlier.shape = NA, na.rm = TRUE) +  # Boxplots ohne Outlier
   geom_jitter(data = all_pData_AGE %>% filter(!is.na(AGE)),  # Punkte nur für nicht-NA-Werte
               aes(color = COHORT_TYPE), width = 0.2, alpha = 0.6) +
-  scale_fill_manual(values = c("Group 1" = "skyblue", "Group 2" = "orange", "NA" = "white")) + # Farben der Füllung
-  scale_color_manual(values = c("Group 1" = "blue", "Group 2" = "darkorange")) + # Farben der Punkte
+  scale_fill_manual(
+    values = c("Group A" = "#ffcd66", "Group B" = "#00706d", "NA" = "white"),
+    na.value = "white"  # Farbe für NA-Werte
+  ) + 
+  scale_color_manual(
+    values = c("Group A" = "yellow", "Group B" = "#0c4252", "NA" = "grey")
+  ) + 
   theme_minimal() +
   labs(
     title = "Age Distribution by Cohort",
@@ -205,6 +217,66 @@ ggplot(gleason_df, aes(x = Group, y = Score, fill = Group)) +
     y = "Gleason Score"
   ) +
   theme_minimal()
+
+
+
+
+###################################################
+# Grouped Bar Plot
+
+
+# 2) Rohdaten extrahieren und Data-Frame erstellen
+train_scores <- na.omit(train_pData$GLEASON_SCORE)
+test_scores  <- na.omit(test_pData$GLEASON_SCORE)
+
+gleason_df <- data.frame(
+  Score = c(train_scores, test_scores),
+  Group = c(rep("Group A", length(train_scores)),  # "Train" zu "Group A" geändert
+            rep("Group B", length(test_scores)))    # "Test" zu "Group B" geändert
+)
+
+# 3) Berechnung der prozentualen Anteile
+gleason_percent <- gleason_df %>%
+  group_by(Group, Score) %>%
+  summarise(Count = n(), .groups = 'drop') %>%
+  group_by(Group) %>%
+  mutate(Percentage = (Count / sum(Count)) * 100) %>%
+  ungroup()
+
+# Optional: Sicherstellen, dass alle Kombinationen vorhanden sind (für vollständige Darstellung)
+gleason_percent <- gleason_percent %>%
+  complete(Group, Score, fill = list(Count = 0, Percentage = 0))
+
+# 4) Erstellung des gruppierten Balkendiagramms mit der Legende rechts
+ggplot(gleason_percent, aes(x = as.factor(Score), y = Percentage, fill = Group)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  scale_fill_manual(
+    values = c("Group A" = "#ffcd66", "Group B" = "#00706d")  # Farben angepasst
+  ) +
+  labs(
+    title = "Gleason Score Distribution by Group in %",
+    x = "Gleason Score",
+    y = "% ",
+    fill = "Gruppe"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 10),
+    axis.text.y = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    legend.position = "right",  # Legende nach rechts verschieben
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  ) +
+  geom_text(
+    aes(label = sprintf("%.1f%%", Percentage)),
+    position = position_dodge(width = 0.8),
+    vjust = -0.5,
+    size = 3,
+    color = "black"  # Farbe der Textbeschriftungen für bessere Lesbarkeit
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))  # Raum für Text über den Balken
 
 
 
@@ -296,12 +368,12 @@ psa_data <- psa_data %>%
 # Definieren der Farbgruppen
 psa_data <- psa_data %>%
   mutate(
-    ColorGroup = ifelse(Cohort %in% paste0("Cohort ", 10:11), "Group 2", "Group 1")
+    ColorGroup = ifelse(Cohort %in% paste0("Cohort ", 10:11), "Group B", "Group A")
   )
 
 # Definieren der Farbzuweisung für die beiden Gruppen
-fill_colors <- c("Group 1" = "#00706d", "Group 2" = "yellow")
-color_colors <- c("Group 1" = "#0c4252", "Group 2" = "orange")
+fill_colors <- c("Group A" = "#ffcd66", "Group B" = "#00706d")
+color_colors <- c("Group A" = "yellow", "Group B" = "#0c4252")
 
 # Erstellen des Boxplots für alle Daten mit angepasster Legende
 ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
@@ -309,9 +381,10 @@ ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
   geom_jitter(aes(color = ColorGroup), width = 0.2, alpha = 0.5) +  
   scale_fill_manual(values = fill_colors, name = "Group") + 
   scale_color_manual(values = color_colors, name = "Group") + 
+  scale_x_log10() +  
   labs(
     title = "Distribution of PSA Values by Cohort",
-    x = "PSA Value",
+    x = "Log10(PSA Value)",
     y = "Cohort"
   ) +
   theme_minimal() +
@@ -320,6 +393,7 @@ ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10)
   )
+
 
 # Erstellen des Boxplots mit eingeschränktem X-Bereich (0 bis 100) und angepasster Legende
 ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
@@ -342,12 +416,6 @@ ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
 
 
 
-
-# Nochmal mit log scale wegen ausreißern
-# Laden der notwendigen Bibliotheken
-library(dplyr)
-library(ggplot2)
-library(forcats)
 
 # Sicherstellen, dass PRE_OPERATIVE_PSA numerisch ist
 train_pData$PRE_OPERATIVE_PSA <- as.numeric(train_pData$PRE_OPERATIVE_PSA)
@@ -550,8 +618,124 @@ ggplot(exprs_num_df, aes(x = Exprs.Source, y = Exprs.Count, fill = Color_Group))
   theme(
     axis.text.y  = element_text(size = 10),
     axis.text.x  = element_text(size = 10),
-    plot.title   = element_text(hjust = 0.5, size = 14)
+    plot.title   = element_text(hjust = 0.5,size = 14, face = "bold")
   )
+
+###########################
+#Nur Cohorten Genes
+
+
+library(dplyr)
+library(ggplot2)
+
+# a. Erstellen des Sub-Datenframes für Kohorten 1-11
+exprs_num_df_cohorts <- exprs_num_df %>%
+  filter(Exprs.Source %in% paste0("Cohort ", 1:11)) %>%
+  arrange(SortGroup, desc(`Exprs.Count`))
+
+# b. Verschiebe die ersten zwei Zeilen ans Ende
+exprs_num_df_cohorts <- exprs_num_df_cohorts %>%
+  slice(-c(1,2)) %>%
+  bind_rows(exprs_num_df_cohorts %>% slice(1:2))
+
+# c. Anpassen der Faktorlevels nach der Neuanordnung
+exprs_num_df_cohorts$Exprs.Source <- factor(
+  exprs_num_df_cohorts$Exprs.Source, 
+  levels = rev(exprs_num_df_cohorts$Exprs.Source)  # Umgekehrte Reihenfolge für coord_flip()
+)
+
+# d. Erstellung des Balkendiagramms
+ggplot(exprs_num_df_cohorts, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Color_Group)) +
+  geom_bar(stat = "identity", width = 0.8) +
+  geom_text(aes(label = `Exprs.Count`), hjust = -0.2, size = 3) +
+  scale_fill_manual(
+    values = c("Orange" = "#00706d", "Blue" = "#ffcd66"),
+    labels = c("Orange" = "Group B", "Blue" = "Group A")
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  coord_flip() +
+  labs(
+    title = "Number of Genes by Cohorts",
+    x = "Cohort",
+    y = "Gene Count",
+    fill = "Group"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y  = element_text(size = 10),
+    axis.text.x  = element_text(size = 10),
+    plot.title   = element_text(hjust = 0.5, size = 14, face = "bold"),
+    legend.position = "right",  # Legende nach rechts verschieben
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+
+# -------------------------------------------------
+# 2. Plot für "Common Genes", "Intersection" und "All Genes"
+# -------------------------------------------------
+
+# a. Erstellen des Sub-Datenframes für Kombinationen
+exprs_num_df_combinations <- exprs_num_df %>%
+  filter(Exprs.Source %in% c("Common Genes", "Intersection", "All Genes")) %>%
+  arrange(SortGroup, desc(`Exprs.Count`))
+
+# b. Anpassen der Faktorlevels für die Reihenfolge im Plot
+exprs_num_df_combinations$Exprs.Source <- factor(
+  exprs_num_df_combinations$Exprs.Source, 
+  levels = rev(exprs_num_df_combinations$Exprs.Source)  # Umgekehrte Reihenfolge für coord_flip()
+)
+
+# c. Anpassen der Farbzuordnung für Kombinationen
+exprs_num_df_combinations <- exprs_num_df_combinations %>%
+  mutate(
+    Color_Group = case_when(
+      Exprs.Source == "Common Genes"  ~ "darkred",
+      Exprs.Source == "Intersection"   ~ "#0c4252",
+      Exprs.Source == "All Genes"      ~ "grey",
+      TRUE                             ~ "gray"  # Für Sicherheit
+    )
+  )
+
+color_map_combinations <- c(
+  "darkred" = "darkred", 
+  "#0c4252" = "#0c4252", 
+  "grey" = "grey"
+)
+
+legend_labels_combinations <- c(
+  "darkred" = "Common Genes",
+  "#0c4252" = "Intersection",
+  "grey" = "All Genes"
+)
+
+# Erstellung des Balkendiagramms für "Common Genes", "Intersection" und "All Genes"
+ggplot(exprs_num_df_combinations, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Color_Group)) +
+  geom_bar(stat = "identity", width = 0.8) +
+  geom_text(aes(label = `Exprs.Count`), hjust = -0.2, size = 3) +
+  scale_fill_manual(
+    values = c("darkred" = "darkred", "#0c4252" = "#0c4252", "grey" = "grey"),
+    labels = c("darkred" = "Common Genes", "#0c4252" = "Intersection", "grey" = "All Genes")
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  coord_flip() +
+  labs(
+    title = "Number of Genes by Combination Type",
+    x = "",
+    y = "Gene Count",
+    fill = "Combination Types"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y  = element_text(size = 10),
+    axis.text.x  = element_text(size = 10),
+    plot.title   = element_text(hjust = 0.5, size = 14, face = "bold"),
+    legend.position = "right",  # Legende nach rechts verschieben
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+
+
+
 
 
 
@@ -1350,21 +1534,20 @@ missing_genes_df <- missing_genes_df %>%
     )
   )
 
-
+missing_genes_df$Fehlende_Gene <- -missing_genes_df$Fehlende_Gene
 
 library(ggplot2)
 library(dplyr)
 
-# Erstellung eines negativen Bar Charts
-ggplot(missing_genes_df, aes(x = Cohort, y = -Fehlende_Gene, fill = ColorGroup)) +
+ggplot(missing_genes_df, aes(x = Cohort, y = Fehlende_Gene, fill = ColorGroup)) +
   geom_bar(stat = "identity") +
   scale_fill_manual(
-    values = c("Group 1" = "skyblue", "Group 2" = "orange")  # Farben zuweisen
+    values = c("Group 1" = "#ffcd66", "Group 2" = "#00706d")  # Farben zuweisen
   ) +
   scale_y_continuous(
     limits = c(-2500, 0),  # Skala bis -2500
     breaks = seq(-2500, 0, by = 500),  # Breakpoints alle 500
-    labels = abs(seq(-2500, 0, by = 500))  # Absolutwerte anzeigen
+    labels = seq(-2500, 0, by = 500)   # Negative Werte anzeigen
   ) +
   labs(
     title = "Genes to Impute by Cohort",
@@ -1374,9 +1557,9 @@ ggplot(missing_genes_df, aes(x = Cohort, y = -Fehlende_Gene, fill = ColorGroup))
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
-    plot.title = element_text(hjust = 0.5)
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
   ) +
-  geom_text(aes(label = Fehlende_Gene), vjust = 1.5, color = "black") 
+  geom_text(aes(label = Fehlende_Gene), vjust = 1.5, color = "black")  # Negative Labels
 
 
 
@@ -1415,19 +1598,33 @@ result <- all_pData_BCR_STATUS %>%
   ) %>%
   mutate(BCR_True_Proportion = BCR_True_Count / Total_Patients)
 
-# Farbzuordnung: Kohorte 10 und 11 -> Orange, andere -> Skyblue
+
+
 result <- result %>%
   mutate(
-    Group = ifelse(STUDY %in% c("Cohort 10", "Cohort 11"), "Group 2", "Group 1"),
+    # Gruppenzuweisung basierend auf den spezifischen Cohorts
+    Group = ifelse(STUDY %in% c("Cohort 10", "Cohort 11 (DOD)"), "Group 2", "Group 1"),
+    
+    # Farbzuweisung basierend auf der Gruppe
     Color = ifelse(Group == "Group 2", "orange", "skyblue"),
-    # Faktor mit expliziter Reihenfolge
-    STUDY = factor(STUDY, levels = paste("Cohort", 1:11))
+    
+    # Manuelle Festlegung der Reihenfolge der Faktor-Levels
+    STUDY = factor(STUDY, levels = c(
+      "Cohort 1", "Cohort 2", "Cohort 3", "Cohort 4", "Cohort 5",
+      "Cohort 6", "Cohort 7", "Cohort 8", "Cohort 9",
+      "Cohort 10", "Cohort 11 (DOD)"
+    ))
   )
+
+# Überprüfe die Faktor-Levels, um sicherzustellen, dass die Reihenfolge korrekt ist
+levels(result$STUDY)
+
+
 
 # Balkendiagramm erstellen
 ggplot(result, aes(x = STUDY, y = BCR_True_Proportion, fill = Group)) +
   geom_bar(stat = "identity") +
-  scale_fill_manual(values = c("skyblue", "orange"), labels = c("Group 1", "Group 2")) +
+  scale_fill_manual(values = c("#00706d", "yellow"), labels = c("Group 1", "Group 2")) +
   scale_y_continuous(labels = scales::percent_format()) +
   labs(
     title = "% of BCR per cohort",
@@ -1446,7 +1643,7 @@ ggplot(result, aes(x = STUDY, y = BCR_True_Proportion, fill = Group)) +
 
 ggplot(missing_genes_df, aes(x = Cohort, y = MissingGenes, fill = ColorGroup)) +
   geom_bar(stat = "identity") +
-  scale_fill_manual(values = c("skyblue" = "skyblue", "orange" = "orange")) +
+  scale_fill_manual(values = c("skyblue" = "skyblue", "yellow" = "yellow")) +
   labs(
     x = "Cohorts",
     y = "Number of Missing Genes",
@@ -1476,6 +1673,41 @@ ggplot(df_long, aes(x = Zeit, y = Survival, color = Modell)) +
        y = "Überlebenswahrscheinlichkeit") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
+
+
+
+
+
+
+
+
+
+################################################################################################################
+
+
+
+
+###Korelatoin
+# Subset der numerischen Spalten
+numerical_columns_exprs <- train_exprs_merged_intersect[, sapply(train_exprs_merged_intersect, is.numeric)]
+
+
+
+
+# 1. Korrelationsmatrix berechnen
+cor_matrix <- cor(numerical_columns_exprs)
+
+# 2. Bedingung: Korrelation > 0.9 und nicht diagonal
+high_corr <- cor_matrix < (-0.4) & lower.tri(cor_matrix)
+
+# 3. Spalten mit hoher Korrelation zählen
+columns_with_high_corr <- which(apply(high_corr, 2, any)) # Spalten finden
+
+# Ausgabe der Anzahl der Spalten
+length(columns_with_high_corr)
+
+
+
 
 
 
