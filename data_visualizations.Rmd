@@ -42,12 +42,24 @@ load_cohorts <- function(rds_file_paths) {
 }
 train_cohorts <- load_cohorts("PCa_cohorts.Rds")
 
+
+
+test_cohorts <- load_cohorts( "PCa_cohorts_2.Rds")
+
+
+train_exprs_merged_imputed <- exprs <- as.data.frame(read_csv('data/merged_data/exprs/common_genes/common_genes_knn_imputed.csv', lazy = TRUE))
+train_exprs_merged_intersect<- exprs <- as.data.frame(read_csv('data/merged_data/exprs/intersection/exprs_intersect.csv', lazy = TRUE))
+train_exprs_merged_all_genes<- exprs <- as.data.frame(read_csv('data/merged_data/exprs/all_genes/all_genes.csv', lazy = TRUE))
+
+```
+```{r preprocess for the plotting}
+# fix data time 
 train_cohorts$Stockholm_2016_Ross_Adams$pData$AGE <- 
   ifelse(train_cohorts$Stockholm_2016_Ross_Adams$pData$AGE == "unknown", 
          NA, 
          train_cohorts$Stockholm_2016_Ross_Adams$pData$AGE)
 
-test_cohorts <- load_cohorts( "PCa_cohorts_2.Rds")
+# merge data frames with relevatn columns
 train_pData <- data.frame()
 test_pData <- data.frame()
 for (i in 1:length(train_cohorts)) { 
@@ -55,12 +67,186 @@ for (i in 1:length(train_cohorts)) {
 }
 for (i in 1:length(test_cohorts)) { 
   test_pData <- rbind(test_pData, test_cohorts[[i]]$pData[,c("AGE", "STUDY", "TISSUE", "GLEASON_SCORE", "PRE_OPERATIVE_PSA", "BCR_STATUS", "MONTH_TO_BCR", "DOD_STATUS", "MONTH_TO_DOD")])
-  
 }
+test_pData$TISSUE[test_pData$TISSUE == "fresh-frozen"] <- "Fresh_frozen"
+all_pData <- rbind(train_pData, test_pData)
 
-train_exprs_merged_imputed <- exprs <- as.data.frame(read_csv('data/merged_data/exprs/common_genes/common_genes_knn_imputed.csv', lazy = TRUE))
-train_exprs_merged_intersect<- exprs <- as.data.frame(read_csv('data/merged_data/exprs/intersection/exprs_intersect.csv', lazy = TRUE))
-train_exprs_merged_all_genes<- exprs <- as.data.frame(read_csv('data/merged_data/exprs/all_genes/all_genes.csv', lazy = TRUE))
+# Define cohort groups
+group_a_cohorts <- c(
+  "Atlanta_2014_Long", "Belfast_2018_Jain", "CamCap_2016_Ross_Adams",
+  "CancerMap_2017_Luca", "CPC_GENE_2017_Fraser", "CPGEA_2020_Li",
+  "DKFZ_2018_Gerhauser", "MSKCC_2010_Taylor", "Stockholm_2016_Ross_Adams"
+)
+
+group_b_cohorts <- c(
+  "Ribolution_prad", "Ribolution_ukd2"
+)
+
+# Add Group Column
+all_pData$Group <- ifelse(all_pData$STUDY %in% group_a_cohorts, "A", 
+                          ifelse(all_pData$STUDY %in% group_b_cohorts, "B", NA))
+
+rename_map <- c(
+  "Atlanta_2014_Long" = "Cohort 1",
+  "Belfast_2018_Jain" = "Cohort 2",
+  "CamCap_2016_Ross_Adams" = "Cohort 3",
+  "CancerMap_2017_Luca" = "Cohort 4",
+  "CPC_GENE_2017_Fraser" = "Cohort 5",
+  "CPGEA_2020_Li" = "Cohort 6",
+  "DKFZ_2018_Gerhauser" = "Cohort 7",
+  "MSKCC_2010_Taylor" = "Cohort 8",
+  "Stockholm_2016_Ross_Adams" = "Cohort 9",
+  "Ribolution_prad" = "Cohort 10",
+  "Ribolution_ukd2" = "Cohort 11"
+)
+
 
 ```
 
+```{r tissue stack bar plot}
+# Prepare data for the plot
+train_tissue_counts <- table(train_pData$TISSUE)
+test_tissue_counts <- table(test_pData$TISSUE)
+
+all_tissue_types <- union(names(train_tissue_counts), names(test_tissue_counts))
+train_tissue_counts <- train_tissue_counts[all_tissue_types]
+test_tissue_counts <- test_tissue_counts[all_tissue_types]
+stacked_counts <- rbind(train_tissue_counts, test_tissue_counts)
+rownames(stacked_counts) <- c("Group A", "Group B")
+tissue_df <- as.data.frame(t(stacked_counts))
+tissue_df$Tissue_Type <- rownames(tissue_df)
+tissue_df_long <- pivot_longer(tissue_df, -Tissue_Type, names_to = "Group", values_to = "Count")
+
+#plot 
+ggplot(tissue_df_long, aes(x = Tissue_Type, y = Count, fill = Group)) +
+  geom_bar(stat = "identity", position = position_stack(reverse = TRUE)) +
+  scale_fill_manual(values = c("Group A" = "#ffcd66", "Group B" = "#00706d")) +
+  labs(
+    title = "Number of patients by tissue type",
+    x = "Tissue Type",
+    y = "Number of patients",
+    fill = "Group"
+  ) +
+  scale_x_discrete(labels = c("FFPE" = "FFPE", "Fresh_frozen" = "Fresh-Frozen", "Snap_frozen" = "Snap-Frozen")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0, size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+
+
+
+```
+
+```{r tissue stack bar plot}
+
+
+# Ensure AGE is numeric and add COHORT_TYPE
+train_pData_AGE <- train_pData %>%
+  mutate(
+    AGE = as.numeric(AGE),
+    COHORT_TYPE = "Group 1"
+  )
+
+test_pData_AGE <- test_pData %>%
+  mutate(
+    AGE = as.numeric(AGE),
+    COHORT_TYPE = "Group 2"
+  )
+
+# Combine train and test data
+all_pData_AGE <- bind_rows(
+  train_pData_AGE[, c("AGE", "STUDY", "COHORT_TYPE")],
+  test_pData_AGE[, c("AGE", "STUDY", "COHORT_TYPE")]
+)
+
+# Process combined data
+all_pData_AGE <- all_pData_AGE %>%
+  mutate(STUDY = rename_map[STUDY]) %>%
+  mutate(STUDY = factor(STUDY, levels = rename_map)) %>%
+  complete(
+    STUDY = factor(rename_map, levels = rename_map),
+    fill = list(AGE = NA, COHORT_TYPE = "NA")
+  ) %>%
+  mutate(COHORT_TYPE = factor(COHORT_TYPE, levels = c("Group 1", "Group 2", "NA")))
+
+# Boxplot
+ggplot(all_pData_AGE, aes(x = STUDY, y = AGE, fill = COHORT_TYPE)) +
+  geom_boxplot(outlier.shape = NA, na.rm = TRUE) +
+  scale_fill_manual(
+    values = c("Group 1" = "#ffcd66", "Group 2" = "#00706d", "NA" = "white"),
+    na.value = "white"
+  ) +
+  theme_minimal() +
+  labs(
+    title = "Age Distribution by Cohort",
+    x = "Cohort",
+    y = "Age",
+    fill = "Group",
+    color = "Group"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0, size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+
+```
+
+
+```{r tissue stack bar plot}
+# create gleason score df
+train_scores <- na.omit(train_pData$GLEASON_SCORE)
+test_scores  <- na.omit(test_pData$GLEASON_SCORE)
+
+gleason_df <- data.frame(
+  Score = c(train_scores, test_scores),
+  Group = c(rep("Group A", length(train_scores)),  # "Train" zu "Group A" geändert
+            rep("Group B", length(test_scores)))    # "Test" zu "Group B" geändert
+)
+
+# clac relative score amounts
+gleason_percent <- gleason_df %>%
+  group_by(Group, Score) %>%
+  summarise(Count = n(), .groups = 'drop') %>%
+  group_by(Group) %>%
+  mutate(Percentage = (Count / sum(Count)) * 100) %>%
+  ungroup()
+
+# plot
+ggplot(gleason_percent, aes(x = as.factor(Score), y = Percentage, fill = Group)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  scale_fill_manual(
+    values = c("Group A" = "#ffcd66", "Group B" = "#00706d")
+  ) +
+  labs(
+    title = "Gleason Score Distribution by Group in %",
+    x = "Gleason Score",
+    y = "%",
+    fill = "Group"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0, size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10, angle = 0, hjust = 0.5),
+    axis.text.y = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  ) +
+  geom_text(
+    aes(label = sprintf("%.1f%%", Percentage)),
+    position = position_dodge(width = 0.8),
+    vjust = -0.5,
+    size = 3,
+    color = "black"
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
+
+```
