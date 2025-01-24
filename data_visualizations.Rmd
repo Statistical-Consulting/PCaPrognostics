@@ -1,0 +1,66 @@
+---
+title: "data_visualizations"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r load packages}
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(Biobase)
+library(forcats)
+```
+
+```{r load data}
+train_studies <- c(
+  "Atlanta_2014_Long", "Belfast_2018_Jain", "CamCap_2016_Ross_Adams",
+  "CancerMap_2017_Luca", "CPC_GENE_2017_Fraser", "CPGEA_2020_Li",
+  "DKFZ_2018_Gerhauser", "MSKCC_2010_Taylor", "Stockholm_2016_Ross_Adams"
+)
+test_studies <- c("Ribolution_prad", "Ribolution_ukd2")
+
+all_studies <- c(train_studies, test_studies)
+
+load_cohorts <- function(rds_file_paths) {
+  all_cohorts <- list()
+  for (rds_file_path in rds_file_paths) {
+    cohorts <- readRDS(file.path(".", "data", rds_file_path))
+    cohorts_list <- lapply(cohorts, function(eset) {
+      list(
+        pData = as.data.frame(pData(eset)),
+        fData = as.data.frame(fData(eset)),
+        exprs = as.data.frame(exprs(eset))
+      )
+    })
+    all_cohorts <- c(all_cohorts, cohorts_list)
+  }
+  return(all_cohorts)
+}
+train_cohorts <- load_cohorts("PCa_cohorts.Rds")
+
+train_cohorts$Stockholm_2016_Ross_Adams$pData$AGE <- 
+  ifelse(train_cohorts$Stockholm_2016_Ross_Adams$pData$AGE == "unknown", 
+         NA, 
+         train_cohorts$Stockholm_2016_Ross_Adams$pData$AGE)
+
+test_cohorts <- load_cohorts( "PCa_cohorts_2.Rds")
+train_pData <- data.frame()
+test_pData <- data.frame()
+for (i in 1:length(train_cohorts)) { 
+  train_pData <- rbind(train_pData, train_cohorts[[i]]$pData[,c("AGE", "STUDY", "TISSUE", "GLEASON_SCORE", "PRE_OPERATIVE_PSA", "BCR_STATUS", "MONTH_TO_BCR", "DOD_STATUS", "MONTH_TO_DOD")])
+}
+for (i in 1:length(test_cohorts)) { 
+  test_pData <- rbind(test_pData, test_cohorts[[i]]$pData[,c("AGE", "STUDY", "TISSUE", "GLEASON_SCORE", "PRE_OPERATIVE_PSA", "BCR_STATUS", "MONTH_TO_BCR", "DOD_STATUS", "MONTH_TO_DOD")])
+  
+}
+
+train_exprs_merged_imputed <- exprs <- as.data.frame(read_csv('data/merged_data/exprs/common_genes/common_genes_knn_imputed.csv', lazy = TRUE))
+train_exprs_merged_intersect<- exprs <- as.data.frame(read_csv('data/merged_data/exprs/intersection/exprs_intersect.csv', lazy = TRUE))
+train_exprs_merged_all_genes<- exprs <- as.data.frame(read_csv('data/merged_data/exprs/all_genes/all_genes.csv', lazy = TRUE))
+
+```
+
