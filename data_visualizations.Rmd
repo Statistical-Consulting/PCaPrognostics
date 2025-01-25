@@ -13,6 +13,7 @@ library(readr)
 library(tidyr)
 library(Biobase)
 library(forcats)
+library(scales) 
 ```
 
 ```{r load data}
@@ -408,7 +409,7 @@ exprs_num_df_combinations$Exprs.Source <- factor(
 
 ```
 
-```{r prepare exprs data for plotting}
+```{r create plot}
 # Plot
 ggplot(exprs_num_df_cohorts, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Color_Group)) +
   geom_bar(stat = "identity", width = 0.8) +
@@ -428,14 +429,14 @@ ggplot(exprs_num_df_cohorts, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Col
   theme(
     axis.text.y  = element_text(size = 10),
     axis.text.x  = element_text(size = 10),
-    plot.title   = element_text(hjust = 0, size = 14, face = "bold"),
+    plot.title   = element_text(hjust = 0, size = 12, face = "bold"),
     legend.position = "right",
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10)
   )
 
 # Plot
-plot1 <- ggplot(exprs_num_df_combinations, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Color_Group)) +
+ggplot(exprs_num_df_combinations, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Color_Group)) +
   geom_bar(stat = "identity", width = 0.8) +
   geom_text(aes(label = `Exprs.Count`), hjust = -0.2, size = 3) +
   scale_fill_manual(
@@ -454,7 +455,7 @@ plot1 <- ggplot(exprs_num_df_combinations, aes(x = Exprs.Source, y = `Exprs.Coun
   theme(
     axis.text.y  = element_text(size = 10),
     axis.text.x  = element_text(size = 10),
-    plot.title   = element_text(hjust = 0, size = 14, face = "bold"),
+    plot.title   = element_text(hjust = 0, size = 12, face = "bold"),
     legend.position = "right",
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10)
@@ -466,30 +467,57 @@ test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$MONTH_TO_BCR <-
   test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$MONTH_TO_DOD / 100
 
 test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$BCR_STATUS <- 
-  test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$DOD_STATUS / 100
+  test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$DOD_STATUS
 
-# Create BCR Data subset
-all_pData_MONTH_TO_BCR <- rbind(train_pData[, c("MONTH_TO_BCR", "STUDY", "BCR_STATUS")] %>%
-                              select(MONTH_TO_BCR, STUDY, BCR_STATUS) %>%
-                              mutate(Group = "Group 1"),
-                              test_pData[, c("MONTH_TO_BCR", "STUDY", "BCR_STATUS")] %>%
-                              select(MONTH_TO_BCR, STUDY, BCR_STATUS) %>%
-                              mutate(Group = "Group 2"))
+# Create BCR Data subset with grouping
+all_pData_bcr <- rbind(
+  train_pData[, c("MONTH_TO_BCR", "STUDY", "BCR_STATUS")] %>%
+    mutate(Group = "Group 1"),
+  test_pData[, c("MONTH_TO_BCR", "STUDY", "BCR_STATUS")] %>%
+    mutate(Group = "Group 2")
+)
+
+# Map cohort names using rename_map and filter rows with valid mapping
+all_pData_bcr$Cohort <- rename_map[all_pData_bcr$STUDY]
+all_pData_bcr <- all_pData_bcr[!is.na(all_pData_bcr$Cohort), ]
+
+# Calculate the proportion of BCR_STATUS = 1 per cohort
+plot_data <- all_pData_bcr %>%
+  group_by(Cohort, Group) %>%
+  summarise(ProportionBCR1 = mean(BCR_STATUS == 1, na.rm = TRUE), .groups = "drop")
+
+# Define cohort levels for consistent plotting order
+cohort_levels <- c(
+  "Cohort 1", "Cohort 2", "Cohort 3", "Cohort 4", "Cohort 5",
+  "Cohort 6", "Cohort 7", "Cohort 8", "Cohort 9",
+  "Cohort 10", "Cohort 10 (Inters.)",
+  "Cohort 11", "Cohort 11 (Inters.)"
+)
+plot_data$Cohort <- factor(plot_data$Cohort, levels = cohort_levels)
+
+# Plot with consistent style
+ggplot(plot_data, aes(x = Cohort, y = ProportionBCR1, fill = Group)) +
+  geom_col() +
+  geom_text(aes(label = scales::percent(ProportionBCR1, accuracy = 1)), 
+            vjust = -0.5, size = 3) + 
+  scale_y_continuous(labels = scales::percent_format(), expand = expansion(mult = c(0, 0.1))) +
+  scale_fill_manual(values = c("Group 1" = "#ffcd66", "Group 2" = "#00706d")) + 
+  labs(
+    title = "% of BCR per Cohort", 
+    x = "Cohorts", 
+    y = "BCR" 
+  ) +
+  theme_minimal() + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10), 
+    axis.text.y = element_text(size = 10), 
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"), 
+    legend.title = element_blank(), 
+    legend.position = "top" 
+  )
 
 
- 
 
-
-
-
-all_pData_AGE <- all_pData_AGE %>%
-  mutate(STUDY = rename_map[STUDY]) %>%
-  mutate(STUDY = factor(STUDY, levels = rename_map)) %>%
-  complete(
-    STUDY = factor(rename_map, levels = rename_map),
-    fill = list(AGE = NA, Group = "NA")
-  ) %>%
-  mutate(Group = factor(Group, levels = c("Group 1", "Group 2", "NA")))
 
 
 
@@ -580,6 +608,9 @@ missing_genes_df <- missing_genes_df %>%
     Fehlende_Gene = -Fehlende_Gene
   )
 
+```
+
+```{r plot}
 # 7) Plot
 ggplot(missing_genes_df, aes(x = Cohort, y = Fehlende_Gene, fill = ColorGroup)) +
   geom_bar(stat = "identity") +
@@ -592,13 +623,9 @@ ggplot(missing_genes_df, aes(x = Cohort, y = Fehlende_Gene, fill = ColorGroup)) 
   labs(title = "Genes to Impute by Cohort", x = "Cohorts", y = "Number of Missing Genes") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        plot.title = element_text(hjust = 0, size = 14, face = "bold")) +
+        plot.title = element_text(hjust = 0, size = 12, face = "bold")) +
   geom_text(aes(label = Fehlende_Gene), vjust = 1.5, color = "black")
 ```
-
-
-
-
 
 
 
