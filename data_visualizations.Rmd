@@ -41,15 +41,13 @@ load_cohorts <- function(rds_file_paths) {
   return(all_cohorts)
 }
 train_cohorts <- load_cohorts("PCa_cohorts.Rds")
-
-
-
 test_cohorts <- load_cohorts( "PCa_cohorts_2.Rds")
 
 
 train_exprs_merged_imputed <- exprs <- as.data.frame(read_csv('data/merged_data/exprs/common_genes/common_genes_knn_imputed.csv', lazy = TRUE))
 train_exprs_merged_intersect<- exprs <- as.data.frame(read_csv('data/merged_data/exprs/intersection/exprs_intersect.csv', lazy = TRUE))
 train_exprs_merged_all_genes<- exprs <- as.data.frame(read_csv('data/merged_data/exprs/all_genes/all_genes.csv', lazy = TRUE))
+
 
 ```
 ```{r preprocess for the plotting}
@@ -69,6 +67,8 @@ for (i in 1:length(test_cohorts)) {
   test_pData <- rbind(test_pData, test_cohorts[[i]]$pData[,c("AGE", "STUDY", "TISSUE", "GLEASON_SCORE", "PRE_OPERATIVE_PSA", "BCR_STATUS", "MONTH_TO_BCR", "DOD_STATUS", "MONTH_TO_DOD")])
 }
 test_pData$TISSUE[test_pData$TISSUE == "fresh-frozen"] <- "Fresh_frozen"
+test_pData$PRE_OPERATIVE_PSA <- as.numeric(test_pData$PRE_OPERATIVE_PSA)
+train_pData$PRE_OPERATIVE_PSA <- as.numeric(train_pData$PRE_OPERATIVE_PSA)
 all_pData <- rbind(train_pData, test_pData)
 
 # Define cohort groups
@@ -141,7 +141,7 @@ ggplot(tissue_df_long, aes(x = Tissue_Type, y = Count, fill = Group)) +
 
 ```
 
-```{r tissue stack bar plot}
+```{r age box plot}
 
 
 # Ensure AGE is numeric and add COHORT_TYPE
@@ -199,7 +199,7 @@ ggplot(all_pData_AGE, aes(x = STUDY, y = AGE, fill = COHORT_TYPE)) +
 ```
 
 
-```{r tissue stack bar plot}
+```{r gleason score bar plot}
 # create gleason score df
 train_scores <- na.omit(train_pData$GLEASON_SCORE)
 test_scores  <- na.omit(test_pData$GLEASON_SCORE)
@@ -250,3 +250,355 @@ ggplot(gleason_percent, aes(x = as.factor(Score), y = Percentage, fill = Group))
   scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
 
 ```
+
+
+
+
+```{r tissue stack bar plot}
+# prepare psa data frame
+psa_data <- all_pData %>%
+  mutate(
+    Cohort = recode(STUDY, !!!rename_map),  
+    Cohort = factor(Cohort, levels = paste0("Cohort ", 1:11))  
+  ) %>%
+  mutate(
+    Cohort = fct_rev(Cohort)
+  )
+
+# Define colors for groups
+fill_colors <- c("A" = "#ffcd66", "B" = "#00706d")
+
+# Create the plot
+ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = Group)) +
+  geom_boxplot(outlier.shape = 21, outlier.size = 2, outlier.color = "black") +  
+  scale_fill_manual(
+    values = fill_colors,
+    name = "Group"
+  ) +
+  scale_x_log10() +  
+  labs(
+    title = "Distribution of PSA Values by Cohort",
+    x = "PSA Value (Log Scale)",
+    y = "Cohort"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0, size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+
+
+
+```
+
+
+
+
+### Expression Data
+```{r prepare exprs data for plotting}
+
+# Create data frame with number of genes per cohort
+exprs_num_df <- data.frame(
+  `Exprs Source` = character(), 
+  `Exprs Count` = numeric()     
+)
+
+for (i in 1:length(train_cohorts)) {
+  study_name <- train_cohorts[[i]]$pData$STUDY[1]  
+  gene_count <- nrow(train_cohorts[[i]]$exprs)     
+  
+  if (!study_name %in% exprs_num_df$`Exprs Source`) {
+    exprs_num_df <- rbind(
+      exprs_num_df,
+      data.frame(
+        `Exprs Source` = study_name,
+        `Exprs Count` = gene_count
+      )
+    )
+  }
+}
+
+exprs_num_df <- rbind(
+  exprs_num_df,
+  data.frame(`Exprs Source` = "TCGA_PRAD_genes", 
+             `Exprs Count` = nrow(test_cohorts$TCGA_PRAD$exprs)),
+  data.frame(`Exprs Source` = "UKD2", 
+             `Exprs Count` = nrow(test_cohorts$UKD2$exprs))
+)
+
+# Umbenennen der Cohorts
+exprs_num_df <- exprs_num_df %>%
+  mutate(
+    Exprs.Source = case_when(
+      Exprs.Source == "Atlanta_2014_Long"          ~ "Cohort 1",
+      Exprs.Source == "Belfast_2018_Jain"          ~ "Cohort 2",
+      Exprs.Source == "CamCap_2016_Ross_Adams"     ~ "Cohort 3",
+      Exprs.Source == "CancerMap_2017_Luca"        ~ "Cohort 4",
+      Exprs.Source == "CPC_GENE_2017_Fraser"       ~ "Cohort 5",
+      Exprs.Source == "CPGEA_2020_Li"              ~ "Cohort 6",
+      Exprs.Source == "DKFZ_2018_Gerhauser"        ~ "Cohort 7",
+      Exprs.Source == "MSKCC_2010_Taylor"          ~ "Cohort 8",
+      Exprs.Source == "Stockholm_2016_Ross_Adams"  ~ "Cohort 9",
+      Exprs.Source == "TCGA_PRAD_genes"            ~ "Cohort 10",
+      Exprs.Source == "UKD2"                       ~ "Cohort 11",
+      TRUE ~ as.character(Exprs.Source)
+    )
+  )
+
+# prepare cohort plot
+exprs_num_df_cohorts <- exprs_num_df %>%
+  filter(Exprs.Source %in% paste0("Cohort ", 1:11)) %>%
+  mutate(Color_Group = case_when(
+    Exprs.Source %in% c("Cohort 10", "Cohort 11") ~ "Group B",
+    TRUE ~ "Group A"
+  )) %>%
+  arrange(desc(`Exprs.Count`))  # Zuerst nach Count sortieren
+
+# Wichtige Änderung hier: Group B Cohorts ans Ende verschieben
+exprs_num_df_cohorts <- exprs_num_df_cohorts %>%
+  filter(Color_Group == "Group A") %>%  # Nur Group A behalten
+  bind_rows(                           # Group B am Ende anfügen
+    exprs_num_df_cohorts %>% 
+      filter(Color_Group == "Group B") %>%
+      arrange(desc(`Exprs.Count`))
+  )
+
+# refactor für die richtige Reihenfolge im Plot
+exprs_num_df_cohorts$Exprs.Source <- factor(
+  exprs_num_df_cohorts$Exprs.Source, 
+  levels = rev(exprs_num_df_cohorts$Exprs.Source)
+)
+
+exprs_num_df <- rbind(
+  exprs_num_df,
+    data.frame(`Exprs Source` = "All Training Genes", 
+             `Exprs Count` = ncol(train_exprs_merged_all_genes)),
+  data.frame(`Exprs Source` = "Common Genes", 
+             `Exprs Count` = ncol(train_exprs_merged_imputed)),
+  data.frame(`Exprs Source` = "Intersection", 
+             `Exprs Count` = ncol(train_exprs_merged_intersect)),
+  data.frame(`Exprs Source` = "All Test Genes", 
+             `Exprs Count` = length(all_test_genes)),
+  data.frame(`Exprs Source` = "All Genes", 
+             `Exprs Count` = length(all_train_and_test_genes))
+)
+
+## for combinations
+exprs_num_df_combinations <- exprs_num_df %>%
+  filter(Exprs.Source %in% c("Common Genes", "Intersection", "All Genes")) %>%
+  mutate(
+    Color_Group = case_when(
+      Exprs.Source == "Common Genes"  ~ "darkred",
+      Exprs.Source == "Intersection"  ~ "#0c4252",
+      Exprs.Source == "All Genes"     ~ "grey"
+    )
+  )
+
+# reorder
+exprs_num_df_combinations <- rbind(exprs_num_df_combinations, exprs_num_df_combinations[1:2,])[-c(1, 2),]
+
+# refactor
+exprs_num_df_combinations$Exprs.Source <- factor(
+  exprs_num_df_combinations$Exprs.Source, 
+  levels = rev(exprs_num_df_combinations$Exprs.Source)
+)
+
+```
+
+```{r prepare exprs data for plotting}
+# Plot
+ggplot(exprs_num_df_cohorts, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Color_Group)) +
+  geom_bar(stat = "identity", width = 0.8) +
+  geom_text(aes(label = `Exprs.Count`), hjust = -0.2, size = 3) +
+  scale_fill_manual(
+    values = c("Group A" = "#ffcd66", "Group B" = "#00706d")
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  coord_flip() +
+  labs(
+    title = "Number of Genes by Cohorts",
+    x = "Cohort",
+    y = "Gene Count",
+    fill = "Group"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y  = element_text(size = 10),
+    axis.text.x  = element_text(size = 10),
+    plot.title   = element_text(hjust = 0, size = 14, face = "bold"),
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+
+# Plot
+plot1 <- ggplot(exprs_num_df_combinations, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Color_Group)) +
+  geom_bar(stat = "identity", width = 0.8) +
+  geom_text(aes(label = `Exprs.Count`), hjust = -0.2, size = 3) +
+  scale_fill_manual(
+    values = c("darkred" = "darkred", "#0c4252" = "#0c4252", "grey" = "grey"),
+    labels = c("grey" = "All Genes", "darkred" = "Common Genes", "#0c4252" = "Intersection")
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  coord_flip() +
+  labs(
+    title = "Number of Genes by Combination Type",
+    x = "",
+    y = "Gene Count",
+    fill = "Combination Types"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y  = element_text(size = 10),
+    axis.text.x  = element_text(size = 10),
+    plot.title   = element_text(hjust = 0, size = 14, face = "bold"),
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+```
+```{r prepare month to bcr data}
+# Replace missing BCR values in cohort 11
+test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$MONTH_TO_BCR <- 
+  test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$MONTH_TO_DOD / 100
+
+test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$BCR_STATUS <- 
+  test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$DOD_STATUS / 100
+
+# Create BCR Data subset
+all_pData_MONTH_TO_BCR <- rbind(train_pData[, c("MONTH_TO_BCR", "STUDY", "BCR_STATUS")] %>%
+                              select(MONTH_TO_BCR, STUDY, BCR_STATUS) %>%
+                              mutate(Group = "Group 1"),
+                              test_pData[, c("MONTH_TO_BCR", "STUDY", "BCR_STATUS")] %>%
+                              select(MONTH_TO_BCR, STUDY, BCR_STATUS) %>%
+                              mutate(Group = "Group 2"))
+
+
+ 
+
+
+
+
+all_pData_AGE <- all_pData_AGE %>%
+  mutate(STUDY = rename_map[STUDY]) %>%
+  mutate(STUDY = factor(STUDY, levels = rename_map)) %>%
+  complete(
+    STUDY = factor(rename_map, levels = rename_map),
+    fill = list(AGE = NA, Group = "NA")
+  ) %>%
+  mutate(Group = factor(Group, levels = c("Group 1", "Group 2", "NA")))
+
+
+
+
+
+
+```
+
+
+
+
+```{r prepare missing cohorts data}
+
+# select relevant genes for comparison
+common_genes   <- colnames(train_exprs_merged_imputed)[-1]
+intersect_genes <- colnames(train_exprs_merged_intersect)[-1]
+
+#create missing genes df
+missing_genes_df <- data.frame(
+  Kohorte = character(), 
+  Fehlende_Gene = numeric(), 
+  stringsAsFactors = FALSE
+)
+
+
+for (cohort_name in names(train_cohorts)) {
+  fehlende <- length(setdiff(common_genes, rownames(train_cohorts[[cohort_name]]$exprs)))
+  missing_genes_df <- rbind(
+    missing_genes_df, 
+    data.frame(Kohorte = cohort_name, Fehlende_Gene = fehlende)
+  )
+}
+
+
+for (cohort_name in names(test_cohorts)) {
+  fehlende <- length(setdiff(common_genes, rownames(test_cohorts[[cohort_name]]$exprs)))
+  missing_genes_df <- rbind(
+    missing_genes_df, 
+    data.frame(Kohorte = cohort_name, Fehlende_Gene = fehlende)
+  )
+}
+
+# add group b missing genes w.r.t. intersection
+missing_genes_df <- rbind(
+  missing_genes_df,
+  data.frame(Kohorte = "TCGA_PRAD",  Fehlende_Gene = length(setdiff(intersect_genes, rownames(test_cohorts[["TCGA_PRAD"]]$exprs)))),
+  data.frame(Kohorte = "UKD2", Fehlende_Gene = length(setdiff(intersect_genes, rownames(test_cohorts[["UKD2"]]$exprs))))
+)
+missing_genes_df$Kohorte[12:13] <- c("TCGA_PRAD_inters.", "UKD2_inters." )
+
+# Adapt Cohort names
+rename_map_missing_genes <- c(
+  "Atlanta_2014_Long"         = "Cohort 1",
+  "Belfast_2018_Jain"         = "Cohort 2",
+  "CamCap_2016_Ross_Adams"    = "Cohort 3",
+  "CancerMap_2017_Luca"       = "Cohort 4",
+  "CPC_GENE_2017_Fraser"      = "Cohort 5",
+  "CPGEA_2020_Li"             = "Cohort 6",
+  "DKFZ_2018_Gerhauser"       = "Cohort 7",
+  "MSKCC_2010_Taylor"         = "Cohort 8",
+  "Stockholm_2016_Ross_Adams" = "Cohort 9",
+  "TCGA_PRAD"                 = "Cohort 10",
+  "UKD2"                      = "Cohort 11",
+  "TCGA_PRAD_inters."    = "Cohort 10 (Inters.)",
+  "UKD2_inters."    = "Cohort 11 (Inters.)"
+)
+
+missing_genes_df$Cohort <- rename_map_missing_genes[missing_genes_df$Kohorte]
+
+
+# set order for plotting
+cohort_order <- c(
+  "Cohort 1", "Cohort 2", "Cohort 3", "Cohort 4", "Cohort 5", 
+  "Cohort 6", "Cohort 7", "Cohort 8", "Cohort 9",
+  "Cohort 10", "Cohort 10 (Inters.)",
+  "Cohort 11", "Cohort 11 (Inters.)"
+)
+missing_genes_df$Cohort <- factor(missing_genes_df$Cohort, levels = cohort_order)
+
+# Add color scheme
+missing_genes_df <- missing_genes_df %>%
+  mutate(
+    ColorGroup = ifelse(
+      Cohort %in% c("Cohort 10", "Cohort 11", "Cohort 10 (Inters.)", "Cohort 11 (Inters.)"),
+      "Group 2",  
+      "Group 1"
+    ),
+    Fehlende_Gene = -Fehlende_Gene
+  )
+
+# 7) Plot
+ggplot(missing_genes_df, aes(x = Cohort, y = Fehlende_Gene, fill = ColorGroup)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Group 1" = "#ffcd66", "Group 2" = "#00706d"), name = "Group") +
+  scale_y_continuous(
+    limits = c(-2500, 0),
+    breaks = seq(-2500, 0, 500),
+    labels = seq(-2500, 0, 500)
+  ) +
+  labs(title = "Genes to Impute by Cohort", x = "Cohorts", y = "Number of Missing Genes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(hjust = 0, size = 14, face = "bold")) +
+  geom_text(aes(label = Fehlende_Gene), vjust = 1.5, color = "black")
+```
+
+
+
+
+
+
+
