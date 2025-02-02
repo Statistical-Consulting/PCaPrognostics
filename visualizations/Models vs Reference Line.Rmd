@@ -6,7 +6,12 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
+```{r load packages}
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tidyr)
+```
 #Remove this when CSV Files are fixed!
 ```{r fix input data}
 ov_results_coxPas <- ov_results_coxPas[,-2]
@@ -203,6 +208,7 @@ best_test_results_both_cohorts_test_exprs_only_with_avg <- add_average_rows(best
 #average of the ffpe score on cohorts 1-9 (manually added)
 mean_ffpe_score <- 0.701
 weighted_mean_ffpe_score <- 0.698
+best_training_means <- mean(max(ov_results_cBoost$mean), max(ov_results_coxPas$mean), max(ov_results_coxph$mean, max(ov_results_DeepSurv$mean), max(ov_results_rsf$mean), max(ov_results_prio$mean)))
 #mean of all the tst performances of all models
 test_mean_all_models <- mean(c(ov_results_cBoost$ci_cohort1, ov_results_cBoost$ci_cohort2, 
                          ov_results_coxph$ci_cohort1, ov_results_coxph$ci_cohort2, 
@@ -225,36 +231,32 @@ test_mean_best_models <- mean(c(test_results_cohort1,test_results_cohort2))
 
 
 ```{r Create the Plots}
-# Train based best models with mean c-index
+# Train based best models with mean c-index of ffpe
 ggplot(best_test_results_both_cohorts_train_with_avg, aes(y = Model, x = ci, group = Cohort)) +
   
-  # Horizontale Linien von jedem Punkt zur vertikalen Referenzlinie
   geom_segment(aes(
     x = ci,
-    xend = mean_ffpe_score,  # Von jedem Punkt bis zur Referenzlinie
+    xend = mean_ffpe_score,
     y = Model,
     yend = Model
   ),
   linetype = "solid", 
   color = "gray") +
   
-  # Blaue vertikale Referenzlinie
+    # Benchmark
   geom_vline(xintercept = mean_ffpe_score, color = "blue") +
   
-  # Punkte für die Werte (inkl. Average)
   geom_point(aes(color = Cohort), size = 2) +
   
-  # Manuelle Farbzuweisung für Cohort (einschließlich Average)
   scale_color_manual(values = c("Cohort 10" = "turquoise", "Cohort11" = "#0c4252", "Average" = "orange")) +
   
-  # X-Achsen-Anpassung
   scale_x_continuous(
     limits = c(0.6, 0.85),             
     breaks = seq(0.60, 0.85, 0.05),   
     labels = scales::label_number(accuracy = 0.001) 
   ) +
   
-  # Beschriftungen und Theme
+    
   labs(
     title = "Performances of Best Models vs. All Models Benchmark",
     x = "C-Index",
@@ -274,33 +276,70 @@ ggplot(best_test_results_both_cohorts_train_with_avg, aes(y = Model, x = ci, gro
 # Train based best models with all models train performance reference 
 ggplot(best_test_results_both_cohorts_train_with_avg, aes(y = Model, x = ci, group = Cohort)) +
   
-  # Horizontale Linien von jedem Punkt zur vertikalen Referenzlinie
+    # Benchmark
   geom_segment(aes(
     x = ci,
-    xend = train_mean_all_models,  # Von jedem Punkt bis zur Referenzlinie
+    xend = train_mean_all_models,  
     y = Model,
     yend = Model
   ),
   linetype = "solid", 
   color = "gray") +
   
-  # Blaue vertikale Referenzlinie
+    # Benchmark
   geom_vline(xintercept = train_mean_all_models, color = "blue") +
   
-  # Punkte für die Werte (inkl. Average)
   geom_point(aes(color = Cohort), size = 2) +
   
-  # Manuelle Farbzuweisung für Cohort (einschließlich Average)
   scale_color_manual(values = c("Cohort 10" = "turquoise", "Cohort11" = "#0c4252", "Average" = "orange")) +
   
-  # X-Achsen-Anpassung
   scale_x_continuous(
     limits = c(0.6, 0.85),             
     breaks = seq(0.60, 0.85, 0.05),   
     labels = scales::label_number(accuracy = 0.001) 
   ) +
   
-  # Beschriftungen und Theme
+  labs(
+    title = "Performances of Best Models vs. All Models Benchmark",
+    x = "C-Index",
+    y = "Model",
+    color = "Cohort"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0, size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+
+# Train based best models with their avrg train performance reference 
+ggplot(best_test_results_both_cohorts_train_with_avg, aes(y = Model, x = ci, group = Cohort)) +
+  
+    # Benchmark
+  geom_segment(aes(
+    x = ci,
+    xend = train_mean_all_models,  
+    y = Model,
+    yend = Model
+  ),
+  linetype = "solid", 
+  color = "gray") +
+  
+    # Benchmark
+  geom_vline(xintercept = best_training_means, color = "blue") +
+  
+  geom_point(aes(color = Cohort), size = 2) +
+  
+  scale_color_manual(values = c("Cohort 10" = "turquoise", "Cohort11" = "#0c4252", "Average" = "orange")) +
+  
+  scale_x_continuous(
+    limits = c(0.6, 0.85),             
+    breaks = seq(0.60, 0.85, 0.05),   
+    labels = scales::label_number(accuracy = 0.001) 
+  ) +
+  
   labs(
     title = "Performances of Best Models vs. All Models Benchmark",
     x = "C-Index",
@@ -319,33 +358,28 @@ ggplot(best_test_results_both_cohorts_train_with_avg, aes(y = Model, x = ci, gro
 # Train based best models with all models test performance reference 
 ggplot(best_test_results_both_cohorts_train_with_avg, aes(y = Model, x = ci, group = Cohort)) +
   
-  # Horizontale Linien von jedem Punkt zur vertikalen Referenzlinie
   geom_segment(aes(
     x = ci,
-    xend = test_mean_all_models,  # Von jedem Punkt bis zur Referenzlinie
+    xend = test_mean_all_models, 
     y = Model,
     yend = Model
   ),
   linetype = "solid", 
   color = "gray") +
   
-  # Blaue vertikale Referenzlinie
+    # Benchmark
   geom_vline(xintercept = test_mean_all_models, color = "blue") +
   
-  # Punkte für die Werte (inkl. Average)
   geom_point(aes(color = Cohort), size = 2) +
   
-  # Manuelle Farbzuweisung für Cohort (einschließlich Average)
   scale_color_manual(values = c("Cohort 10" = "turquoise", "Cohort11" = "#0c4252", "Average" = "orange")) +
   
-  # X-Achsen-Anpassung
   scale_x_continuous(
     limits = c(0.6, 0.85),             
     breaks = seq(0.60, 0.85, 0.05),   
     labels = scales::label_number(accuracy = 0.001) 
   ) +
   
-  # Beschriftungen und Theme
   labs(
     title = "Performances of Best Models vs. All Models Benchmark",
     x = "C-Index",
@@ -365,33 +399,28 @@ ggplot(best_test_results_both_cohorts_train_with_avg, aes(y = Model, x = ci, gro
 # Test based best models with average of them as reference
 ggplot(best_test_results_both_cohorts_test_with_avg, aes(y = Model, x = ci, group = Cohort)) +
   
-  # Horizontale Linien von jedem Punkt zur vertikalen Referenzlinie
   geom_segment(aes(
     x = ci,
-    xend = test_mean_best_models,  # Von jedem Punkt bis zur Referenzlinie
+    xend = test_mean_best_models, 
     y = Model,
     yend = Model
   ),
   linetype = "solid", 
   color = "gray") +
   
-  # Blaue vertikale Referenzlinie
+  # Benchmark
   geom_vline(xintercept = test_mean_best_models, color = "blue") +
   
-  # Punkte für die Werte (inkl. Average)
   geom_point(aes(color = Cohort), size = 2) +
   
-  # Manuelle Farbzuweisung für Cohort (einschließlich Average)
   scale_color_manual(values = c("Cohort 10" = "turquoise", "Cohort11" = "#0c4252", "Average" = "orange")) +
   
-  # X-Achsen-Anpassung
   scale_x_continuous(
     limits = c(0.6, 0.85),             
     breaks = seq(0.60, 0.85, 0.05),   
     labels = scales::label_number(accuracy = 0.001) 
   ) +
   
-  # Beschriftungen und Theme
   labs(
     title = "Performances of Best Models vs. All Models Benchmark",
     x = "C-Index",
@@ -411,33 +440,28 @@ ggplot(best_test_results_both_cohorts_test_with_avg, aes(y = Model, x = ci, grou
 # Test based best models with average of  all models performances on test date
 ggplot(best_test_results_both_cohorts_test_with_avg, aes(y = Model, x = ci, group = Cohort)) +
   
-  # Horizontale Linien von jedem Punkt zur vertikalen Referenzlinie
   geom_segment(aes(
     x = ci,
-    xend = test_mean_all_models,  # Von jedem Punkt bis zur Referenzlinie
+    xend = test_mean_all_models,  
     y = Model,
     yend = Model
   ),
   linetype = "solid", 
   color = "gray") +
   
-  # Blaue vertikale Referenzlinie
+  # Benchmark
   geom_vline(xintercept = test_mean_all_models, color = "blue") +
   
-  # Punkte für die Werte (inkl. Average)
   geom_point(aes(color = Cohort), size = 2) +
   
-  # Manuelle Farbzuweisung für Cohort (einschließlich Average)
   scale_color_manual(values = c("Cohort 10" = "turquoise", "Cohort11" = "#0c4252", "Average" = "orange")) +
   
-  # X-Achsen-Anpassung
   scale_x_continuous(
     limits = c(0.6, 0.85),             
     breaks = seq(0.60, 0.85, 0.05),   
     labels = scales::label_number(accuracy = 0.001) 
   ) +
   
-  # Beschriftungen und Theme
   labs(
     title = "Performances of Best Models vs. All Models Benchmark",
     x = "C-Index",
@@ -457,33 +481,27 @@ ggplot(best_test_results_both_cohorts_test_with_avg, aes(y = Model, x = ci, grou
 # Train based best models (exprs only) with mean ffpe score as reference
 ggplot(best_test_results_both_cohorts_exprs_only_train_with_avg, aes(y = Model, x = ci, group = Cohort)) +
   
-  # Horizontale Linien von jedem Punkt zur vertikalen Referenzlinie
   geom_segment(aes(
     x = ci,
-    xend = mean_ffpe_score,  # Von jedem Punkt bis zur Referenzlinie
+    xend = mean_ffpe_score, 
     y = Model,
     yend = Model
   ),
   linetype = "solid", 
   color = "gray") +
-  
-  # Blaue vertikale Referenzlinie
+    # Benchmark
   geom_vline(xintercept = mean_ffpe_score, color = "blue") +
   
-  # Punkte für die Werte (inkl. Average)
   geom_point(aes(color = Cohort), size = 2) +
   
-  # Manuelle Farbzuweisung für Cohort (einschließlich Average)
   scale_color_manual(values = c("Cohort 10" = "turquoise", "Cohort11" = "#0c4252", "Average" = "orange")) +
   
-  # X-Achsen-Anpassung
   scale_x_continuous(
     limits = c(0.6, 0.85),             
     breaks = seq(0.60, 0.85, 0.05),   
     labels = scales::label_number(accuracy = 0.001) 
   ) +
-  
-  # Beschriftungen und Theme
+
   labs(
     title = "Performances of Best Models vs. All Models Benchmark",
     x = "C-Index",

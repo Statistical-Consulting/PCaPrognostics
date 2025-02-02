@@ -11,21 +11,22 @@ library(dplyr)
 library(ggplot2)
 library(readr)
 library(tidyr)
+library(purrr)
+
 ```
 #Remove this when CSV Files are fixed!
 ```{r fix input data}
 ov_results_coxPas <- ov_results_coxPas[,-2]
 ov_results_cBoost <- ov_results_cBoost[,-2]
-ov_results_DeepSurv <- ov_results_DeepSurv[,-2]
+
 
 ```
 
 
 ```{r load & preparedata}
 # load results overviews
-getwd()
+group_a_pData <- as.data.frame(read_csv('../data/merged_data/pData/imputed/merged_imputed_pData.csv', lazy = TRUE))
 ov_results_cBoost <- as.data.frame(read_csv('../results_modelling_ovs/ov_cBoost.csv', lazy = TRUE))
-
 ov_results_coxPas <- as.data.frame(read_csv('../results_modelling_ovs/ov_coxPAS.csv', lazy = TRUE))
 ov_results_coxph <- as.data.frame(read_csv('../results_modelling_ovs/ov_coxph.csv', lazy = TRUE))
 ov_results_DeepSurv <- as.data.frame(read_csv('../results_modelling_ovs/ov_DeepSurv.csv', lazy = TRUE))
@@ -44,7 +45,7 @@ ov_results_rsf <- cbind(ov_results_rsf, ordered_datasets)
 
 #cBoost load and filter and find best dataset
 splits_results_cBoost <- as.data.frame(read_csv('../results_modelling_splits/splits_cBoost.csv', lazy = TRUE))
-subset_splits_results <- splits_results_cBoost[splits_results_cBoost$dataset %in% c("Intersection", "Imputed"), ] %>%filter(dataset %in% c("Intersection", "Imputed"))
+subset_splits_results <- splits_results_cBoost[splits_results_cBoost$dataset %in% c("AutoEncoder", "Intersection", "Imputed"), ] %>%filter(dataset %in% c("Intersection", "Imputed"))
 splits_best_cBoost <- subset_splits_results %>%
   group_by(test_cohort) %>%
   slice_max(order_by = ci, n = 1) %>%
@@ -53,7 +54,7 @@ splits_best_cBoost <- subset_splits_results %>%
 # coxph load and filter and find best dataset
 splits_results_coxph <- as.data.frame(read_csv('../results_modelling_splits/splits_coxph.csv', lazy = TRUE))
 subset_splits_results_coxph <- splits_results_coxph %>%
-  filter(dataset %in% c("Intersection", "Imputed"))
+  filter(dataset %in% c("AutoEncoder","Intersection", "Imputed"))
 splits_best_coxph <- subset_splits_results_coxph %>%
   group_by(testing_cohort) %>%
   slice_max(order_by = ci_min, n = 1) %>% #ci_min as it worked better than ci_sd
@@ -64,7 +65,7 @@ colnames(splits_best_coxph) <- c("...1", "test_cohort", "ci_se", "ci", "model", 
 # DeepSurv load and filter and find best dataset
 splits_results_DeepSurv <- as.data.frame(read_csv('../results_modelling_splits/splits_DeepSurv.csv', lazy = TRUE))
 subset_splits_results_DeepSurv <- splits_results_DeepSurv %>%
-  filter(dataset %in% c("Intersection", "Imputed"))
+  filter(dataset %in% c("AutoEncoder","Intersection", "Imputed"))
 splits_best_DeepSurv <- subset_splits_results_DeepSurv %>%
   group_by(test_cohort) %>%
   slice_max(order_by = ci, n = 1) %>%
@@ -73,7 +74,7 @@ splits_best_DeepSurv <- subset_splits_results_DeepSurv %>%
 # rsf load and filter and find best dataset
 splits_results_rsf <- as.data.frame(read_csv('../results_modelling_splits/splits_rsf.csv', lazy = TRUE))
 subset_splits_results_rsf <- splits_results_rsf %>%
-  filter(dataset %in% c("Intersection", "Imputed"))
+  filter(dataset %in% c("AutoEncoder","Intersection", "Imputed"))
 splits_best_rsf <- subset_splits_results_rsf %>%
   group_by(testing_cohort) %>%
   slice_max(order_by = ci, n = 1) %>%
@@ -97,6 +98,7 @@ splits_best_coxph_all_data <- splits_results_coxph_all_data %>%
   slice_max(order_by = ci_min, n = 1) %>%
   ungroup()
 colnames(splits_best_coxph) <- c("...1", "test_cohort", "ci_se", "ci", "model", "dataset")
+colnames(splits_best_coxph_all_data) <- c("...1", "test_cohort", "ci_se", "ci", "model", "dataset")
 
 # DeepSurv load and find best dataset
 splits_results_DeepSurv_all_data <- as.data.frame(read_csv('../results_modelling_splits/splits_DeepSurv.csv', lazy = TRUE))
@@ -112,8 +114,8 @@ splits_best_rsf_all_data <- splits_results_rsf_all_data %>%
   slice_max(order_by = ci, n = 1) %>%
   ungroup()
 colnames(splits_best_rsf)[colnames(splits_best_rsf) == "testing_cohort"] <- "test_cohort"
-
-
+splits_best_rsf_all_data
+colnames(splits_best_rsf_all_data)[colnames(splits_best_rsf_all_data) == "testing_cohort"] <- "test_cohort"
 
 
 
@@ -249,6 +251,7 @@ all_best_splits_data_all_data_sets <- bind_rows(
 
 
 
+
 # rename
 all_best_splits_data_all_data_sets <- all_best_splits_data_all_data_sets %>%
   mutate(test_cohort = rename_map[test_cohort])
@@ -313,6 +316,101 @@ plot2 <- ggplot(all_best_splits_data_all_data_sets[,1:5], aes(x = test_cohort, y
     plot.background = element_rect(fill = "white", color = NA)
   )
 ```
+
+```{r correlation ebtween model performance and % of events }
+
+# Berechnung der Medianwerte pro Test-Cohort
+mean_data <- all_best_splits_data_all_data_sets[,1:5] %>%
+  group_by(test_cohort) %>%
+  summarise(mean_ci = mean(ci, na.rm = TRUE))
+
+
+group_a_pData <- group_a_pData %>%
+  mutate(cohort = sub("\\..*", "", ...1))
+group_a_pData <- group_a_pData %>%
+  mutate(cohort = recode(cohort, !!!rename_map))
+
+bcr_summary <- group_a_pData %>%
+  group_by(cohort) %>%
+  summarise(BCR_Percentage = mean(BCR_STATUS == 1, na.rm = TRUE) * 100) %>%
+  arrange(desc(BCR_Percentage))
+
+merged_data <- bcr_summary %>%
+  inner_join(median_data, by = c("cohort" = "test_cohort"))
+#used spearman because of the small data set and interest in monoton relation
+bcr_performance_cor <- cor(merged_data$BCR_Percentage, merged_data$median_ci, method = "spearman")
+
+#### Plot Goal: Using median performance(median w.r.t. to the input data set) of each model type
+# on each cohort to check whether to get the correlation for the different model types 
+splits_results_coxph_ci <- splits_results_coxph
+splits_results_coxph_ci$ci<- splits_results_coxph$ci_min
+colnames(splits_results_coxph_ci)[2] <- "test_cohort"
+splits_results_rsf_renamed <- splits_results_rsf
+colnames(splits_results_rsf_renamed)[2] <-  "test_cohort"
+
+models_list <- list(
+  "Gradient Boosting" = splits_results_cBoost,
+  "DeepSurv" = splits_results_DeepSurv,
+  "RSF" = splits_results_rsf_renamed,
+  "Cox-PASNet" = splits_results_coxPas,
+  "Priority Lasso" = splits_results_prio,
+  "ffpe-Score" = splits_results_score,
+  "Cox PH" = splits_results_coxph_ci
+)
+
+compute_median_ci <- function(df) {
+  df %>%
+    group_by(test_cohort) %>%
+    summarise(median_ci = median(ci, na.rm = TRUE), .groups = "drop")
+}
+
+median_ci_list <- map(models_list, compute_median_ci)
+
+median_ci_data <- reduce(median_ci_list, full_join, by = "test_cohort")
+
+colnames(median_ci_data)[-1] <- names(models_list)
+
+median_ci_data <- median_ci_data %>%
+  mutate(test_cohort = recode(test_cohort, !!!rename_map))
+
+merged_median_ci_data <- median_ci_data %>%
+  inner_join(bcr_summary, by = c("test_cohort" = "cohort"))
+
+model_columns <- colnames(merged_median_ci_data)[2:(ncol(merged_median_ci_data) - 1)]
+
+# Berechnung der Pearson-Korrelation zwischen jeder Modellspalte und der BCR-Spalte
+correlations <- sapply(model_columns, function(model) {
+  cor(merged_median_ci_data[[model]], merged_median_ci_data$BCR_Percentage, method = "pearson", use = "complete.obs")
+})
+
+# Erstellung des finalen DataFrames mit den Korrelationen
+correlation_df <- data.frame(
+  model = names(correlations),
+  correlation = correlations
+)
+
+ggplot(correlation_df, aes(x = reorder(model, correlation), y = correlation)) +
+  geom_bar(stat = "identity", fill = "#00706d") +  # Rote Balken für negative Werte
+  coord_flip() +  # Horizontal drehen (damit Balken nach unten zeigen)
+  labs(
+    title = "Korrelation zwischen Modellen und BCR-Percentage",
+    x = "Model",
+    y = "Korrelation"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 12),  
+    axis.text.x = element_text(angle = 0, hjust = 1),
+    panel.grid = element_blank(),
+    panel.background = element_rect(fill = "white", color = NA),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+
+```
+
+
+
 
 
 ```{r dot plot for performance by data sets }
