@@ -12,170 +12,194 @@ library(ggplot2)
 library(readr)
 library(tidyr)
 ```
-#Remove this when CSV Files are fixed!
-```{r fix input data}
-ov_results_coxPas <- ov_results_coxPas[,-2]
-ov_results_cBoost <- ov_results_cBoost[,-2]
-ov_results_DeepSurv <- ov_results_DeepSurv[,-2]
+```{r load and prep data}
 
-```
+ov_results_cBoost <- as.data.frame(read_csv('../results_modelling_ovs/ov_GBoost.csv', lazy = TRUE))
+ov_results_coxPas <- as.data.frame(read_csv('../results_modelling_ovs/ov_coxPAS.csv', lazy = TRUE))
+ov_results_coxph <- as.data.frame(read_csv('../results_modelling_ovs/ov_coxph.csv', lazy = TRUE))
+ov_results_DeepSurv <- as.data.frame(read_csv('../results_modelling_ovs/ov_DeepSurv.csv', lazy = TRUE))
+ov_results_prio <- as.data.frame(read_csv('../results_modelling_ovs/ov_prio.csv', lazy = TRUE))
+ov_results_rsf <- as.data.frame(read_csv('../results_modelling_ovs/ov_rsf.csv', lazy = TRUE))
 
+ordered_datasets <- c("AutoEncoder", "pData_AutoEncoder", "Imputed", "pData_Imputed", "Intersection", "pData_Intersection", "pData")
+# Reorder the dataset column and sort the data frame accordingly
+ov_results_cBoost <- ov_results_cBoost %>%
+  mutate(dataset = factor(dataset, levels = ordered_datasets)) %>%
+  arrange(dataset)
+ov_results_coxph <- ov_results_coxph %>%
+  mutate(dataset = factor(dataset, levels = ordered_datasets)) %>%
+  arrange(dataset)
+ov_results_DeepSurv <- ov_results_DeepSurv %>%
+  mutate(dataset = factor(dataset, levels = ordered_datasets)) %>%
+  arrange(dataset)
+ov_results_rsf <- ov_results_rsf %>%
+  mutate(dataset = factor(dataset, levels = ordered_datasets)) %>%
+  arrange(dataset)
 
-```{r load & preparedata}
-ov_results_cBoost <- as.data.frame(read_csv('results_modelling_ovs/ov_cBoost.csv', lazy = TRUE))
-ov_results_coxPas <- as.data.frame(read_csv('results_modelling_ovs/ov_coxPAS.csv', lazy = TRUE))
-ov_results_coxph <- as.data.frame(read_csv('results_modelling_ovs/ov_coxph.csv', lazy = TRUE))
-ov_results_DeepSurv <- as.data.frame(read_csv('results_modelling_ovs/ov_DeepSurv.csv', lazy = TRUE))
-ov_results_prio <- as.data.frame(read_csv('results_modelling_ovs/ov_prio.csv', lazy = TRUE))
-ov_results_rsf <- as.data.frame(read_csv('results_modelling_ovs/ov_rsf.csv', lazy = TRUE))
-ordered_datasets <- c("autoencoder", "autoencoder+pData", "common", "common+pData", "intersect", "intersect+pData", "pData")
-ov_results_cBoost <- cbind(ov_results_cBoost, ordered_datasets)
-ov_results_coxph <- cbind(ov_results_coxph, ordered_datasets)
-ov_results_DeepSurv <- cbind(ov_results_DeepSurv, ordered_datasets)
-ov_results_rsf <- cbind(ov_results_rsf, ordered_datasets)
-
-```
-```{r Subset Exprs based models}
+ov_results_cBoost$dataset <- ordered_datasets
+ov_results_coxph$dataset <- ordered_datasets
+ov_results_DeepSurv$dataset <- ordered_datasets
+ov_results_rsf$dataset <- ordered_datasets
+# Select rows correpsonding to expression data sets
 ov_results_cBoost_exprs_models <- ov_results_cBoost[c(1, 3, 5),]
 ov_results_coxph_exprs_models <- ov_results_coxph[c(1, 3, 5),]
 ov_results_DeepSurv_exprs_models <- ov_results_DeepSurv[c(1, 3, 5),]
 ov_results_rsf_exprs_models <- ov_results_rsf[c(1, 3, 5),]
+ov_results_prio_exprs_models <- ov_results_prio[2,]
 ```
 
 
 ```{r Defining model subsets}
 
-all_models <- c("CatBoost", "PasNet", "PenalizedCox", "DeepSurv","PriorityLasso", "RandomSurvivalForest")
+all_models <- c("GBoost", "CoxPN", "CoxPH", "DeepSurv","PrioLasso", "RSF")
 
-models_expr_based_only <- c("CatBoost", "PenalizedCox","DeepSurv", "RandomSurvivalForest")
-
+models_expr_based_only <- c("GBoost", "CoxPH","DeepSurv" ,"PrioLasso", "RSF")
 ```
 
 ```{r Create Best Performancing Models Vectors}
 ## All Models
 # Based on training performance
-best_training_perf_models <-  c(ov_results_cBoost[ov_results_cBoost$mean==max(ov_results_cBoost$mean),2], 
-                                        ov_results_coxPas[ov_results_coxPas$mean==max(ov_results_coxPas$mean),2],
-                                        ov_results_coxph[ov_results_coxph$mean==max(ov_results_coxph$mean),2],
-                                        ov_results_DeepSurv[ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean),2],
-                                        "prio_lasso_all_data",
-                                        ov_results_rsf[ov_results_rsf$mean==max(ov_results_rsf$mean),2])
+best_training_perf_models <-  c(ov_results_cBoost[ov_results_cBoost$mean==max(ov_results_cBoost$mean), c("dataset")], 
+                                        ov_results_coxPas[ov_results_coxPas$mean==max(ov_results_coxPas$mean), c("dataset")],
+                                        ov_results_coxph[ov_results_coxph$mean==max(ov_results_coxph$mean), c("dataset")],
+                                        ov_results_DeepSurv[ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean), c("dataset")],
+                                        ov_results_prio[ov_results_prio$mean==max(ov_results_prio$mean), c("dataset")],
+                                        ov_results_rsf[ov_results_rsf$mean==max(ov_results_rsf$mean), c("dataset")])
 names(best_training_perf_models) <- all_models
 
 # Based on test performance
-best_cohort1_perf_models <- c(ov_results_cBoost[ov_results_cBoost$ci_cohort1==max(ov_results_cBoost$ci_cohort1),2], 
-                            ov_results_coxPas[ov_results_coxPas$ci_cohort1==max(ov_results_coxPas$ci_cohort1),2],
-                            ov_results_coxph[ov_results_coxph$ci_cohort1==max(ov_results_coxph$ci_cohort1),2],
-                            ov_results_DeepSurv[ov_results_DeepSurv$ci_cohort1==max(ov_results_DeepSurv$ci_cohort1),2],
-                            "prio_lasso_all_data",
-                            ov_results_rsf[ov_results_rsf$ci_cohort1==max(ov_results_rsf$ci_cohort1),2])
+best_cohort1_perf_models <- c(ov_results_cBoost[ov_results_cBoost$ci_coh1==max(ov_results_cBoost$ci_coh1), c("dataset")], 
+                            ov_results_coxPas[ov_results_coxPas$ci_coh1==max(ov_results_coxPas$ci_coh1), c("dataset")],
+                            ov_results_coxph[ov_results_coxph$ci_coh1==max(ov_results_coxph$ci_coh1), c("dataset")],
+                            ov_results_DeepSurv[ov_results_DeepSurv$ci_coh1==max(ov_results_DeepSurv$ci_coh1), c("dataset")],
+                            ov_results_prio[ov_results_prio$ci_coh1==max(ov_results_prio$ci_coh1), c("dataset")],
+                            ov_results_rsf[ov_results_rsf$ci_coh1==max(ov_results_rsf$ci_coh1), c("dataset")])
 names(best_cohort1_perf_models) <- all_models
 
 
-best_cohort2_perf_models <- c(ov_results_cBoost[ov_results_cBoost$ci_cohort2==max(ov_results_cBoost$ci_cohort2),2],
-                            ov_results_coxPas[ov_results_coxPas$ci_cohort2==max(ov_results_coxPas$ci_cohort2),2],
-                            ov_results_coxph[ov_results_coxph$ci_cohort2==max(ov_results_coxph$ci_cohort2),2],
-                            ov_results_DeepSurv[ov_results_DeepSurv$ci_cohort2==max(ov_results_DeepSurv$ci_cohort2),2],
-                            "prio_lasso_all_data",
-                            ov_results_rsf[ov_results_rsf$ci_cohort2==max(ov_results_rsf$ci_cohort2),2])
+best_cohort2_perf_models <- c(ov_results_cBoost[ov_results_cBoost$ci_coh2==max(ov_results_cBoost$ci_coh2), c("dataset")], 
+                            ov_results_coxPas[ov_results_coxPas$ci_coh2==max(ov_results_coxPas$ci_coh2), c("dataset")],
+                            ov_results_coxph[ov_results_coxph$ci_coh2==max(ov_results_coxph$ci_coh2), c("dataset")],
+                            ov_results_DeepSurv[ov_results_DeepSurv$ci_coh2==max(ov_results_DeepSurv$ci_coh2), c("dataset")],
+                            ov_results_prio[ov_results_prio$ci_coh2==max(ov_results_prio$ci_coh2), c("dataset")],
+                            ov_results_rsf[ov_results_rsf$ci_coh2==max(ov_results_rsf$ci_coh2), c("dataset")])
 names(best_cohort2_perf_models) <- all_models
 
 
 ## Exprs Based Models Only
-# Based on training performance
-best_training_perf_models <-  c(ov_results_cBoost[ov_results_cBoost_exprs_models$mean==max(ov_results_cBoost_exprs_models$mean),2], 
-                                        ov_results_coxph[ov_results_coxph_exprs_models$mean==max(ov_results_coxph_exprs_models$mean),2],
-                                        ov_results_DeepSurv[ov_results_DeepSurv_exprs_models$mean==max(ov_results_DeepSurv_exprs_models$mean),2],
-                                        ov_results_rsf[ov_results_rsf_exprs_models$mean==max(ov_results_rsf_exprs_models$mean),2])
+best_training_perf_models_exprs <-  c(ov_results_cBoost_exprs_models[ov_results_cBoost_exprs_models$mean==
+                                                                       max(ov_results_cBoost_exprs_models$mean), c("dataset")], 
+                                       ov_results_coxph_exprs_models[ov_results_coxph_exprs_models$mean==
+                                                                       max(ov_results_coxph_exprs_models$mean), c("dataset")],
+                            ov_results_DeepSurv_exprs_models[ov_results_DeepSurv_exprs_models$mean==
+                                                               max(ov_results_DeepSurv_exprs_models$mean), c("dataset")],
+                            ov_results_prio_exprs_models[ov_results_prio_exprs_models$mean==
+                                                           max(ov_results_prio_exprs_models$mean), c("dataset")],
+                                        ov_results_rsf_exprs_models[ov_results_rsf_exprs_models$mean==
+                                                                      max(ov_results_rsf_exprs_models$mean), c("dataset")])
 names(best_training_perf_models) <- models_expr_based_only
 
-
-
 # Based on test performance
-best_cohort1_perf_models_exprs_based <- c(ov_results_cBoost_exprs_models[ov_results_cBoost_exprs_models$ci_cohort1==max(ov_results_cBoost_exprs_models$ci_cohort1),2],
-ov_results_coxph_exprs_models[ov_results_coxph_exprs_models$ci_cohort1==max(ov_results_coxph_exprs_models$ci_cohort1),2],
-ov_results_DeepSurv_exprs_models[ov_results_DeepSurv_exprs_models$ci_cohort1==max(ov_results_DeepSurv_exprs_models$ci_cohort1),2],
-ov_results_rsf_exprs_models[ov_results_rsf_exprs_models$ci_cohort1==max(ov_results_rsf_exprs_models$ci_cohort1),2])
+best_cohort1_perf_models_exprs_based <- c(ov_results_cBoost_exprs_models[ov_results_cBoost_exprs_models$ci_coh1==max(ov_results_cBoost_exprs_models$ci_coh1), c("dataset")],
+ov_results_coxph_exprs_models[ov_results_coxph_exprs_models$ci_coh1==max(ov_results_coxph_exprs_models$ci_coh1), c("dataset")],
+ov_results_DeepSurv_exprs_models[ov_results_DeepSurv_exprs_models$ci_coh1==max(ov_results_DeepSurv_exprs_models$ci_coh1), c("dataset")],
+ov_results_prio_exprs_models[ov_results_prio_exprs_models$ci_coh1==max(ov_results_prio_exprs_models$ci_coh1), c("dataset")],
+ov_results_rsf_exprs_models[ov_results_rsf_exprs_models$ci_coh1==max(ov_results_rsf_exprs_models$ci_coh1), c("dataset")])
 names(best_cohort1_perf_models_exprs_based) <- models_expr_based_only
 
-best_cohort2_perf_models_exprs_based <- c(ov_results_cBoost_exprs_models[ov_results_cBoost_exprs_models$ci_cohort2==max(ov_results_cBoost_exprs_models$ci_cohort2),2],
-ov_results_coxph_exprs_models[ov_results_coxph_exprs_models$ci_cohort2==max(ov_results_coxph_exprs_models$ci_cohort2),2],
-ov_results_DeepSurv_exprs_models[ov_results_DeepSurv_exprs_models$ci_cohort2==max(ov_results_DeepSurv_exprs_models$ci_cohort2),2],
-ov_results_rsf_exprs_models[ov_results_rsf_exprs_models$ci_cohort2==max(ov_results_rsf_exprs_models$ci_cohort2),2])
-
+best_cohort2_perf_models_exprs_based <- c(ov_results_cBoost_exprs_models[ov_results_cBoost_exprs_models$ci_coh2==max(ov_results_cBoost_exprs_models$ci_coh2), c("dataset")],
+ov_results_coxph_exprs_models[ov_results_coxph_exprs_models$ci_coh2==max(ov_results_coxph_exprs_models$ci_coh2), c("dataset")],
+ov_results_DeepSurv_exprs_models[ov_results_DeepSurv_exprs_models$ci_coh2==max(ov_results_DeepSurv_exprs_models$ci_coh2), c("dataset")],
+ov_results_prio_exprs_models[ov_results_prio_exprs_models$ci_coh2==max(ov_results_prio_exprs_models$ci_coh2), c("dataset")],
+ov_results_rsf_exprs_models[ov_results_rsf_exprs_models$ci_coh2==max(ov_results_rsf_exprs_models$ci_coh2), c("dataset")])
 names(best_cohort2_perf_models_exprs_based) <- models_expr_based_only
-
 ```
 
 ```{r Create Best Performance Vectors based on previous chunk models}
 ## All Models
 # Based on training performance
-test_results_cohort1 <- c(ov_results_cBoost$ci_cohort1[which(ov_results_cBoost$mean==max(ov_results_cBoost$mean))],ov_results_coxPas$ci_cohort1[which(ov_results_coxPas$mean==max(ov_results_coxPas$mean))],ov_results_coxph$ci_cohort1[which(ov_results_coxph$mean==max(ov_results_coxph$mean))],ov_results_DeepSurv$ci_cohort1[which(ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean))],ov_results_prio$ci_cohort1[which(ov_results_prio$mean==max(ov_results_prio$mean))],ov_results_rsf$ci_cohort1[which(ov_results_rsf$mean==max(ov_results_rsf$mean))])
+test_results_cohort1 <- c(ov_results_cBoost$ci_coh1[which(ov_results_cBoost$mean==max(ov_results_cBoost$mean))],
+                          ov_results_coxPas$ci_coh1[which(ov_results_coxPas$mean==max(ov_results_coxPas$mean))],
+                          ov_results_coxph$ci_coh1[which(ov_results_coxph$mean==max(ov_results_coxph$mean))],
+                          ov_results_DeepSurv$ci_coh1[which(ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean))],
+                          ov_results_prio$ci_coh1[which(ov_results_prio$mean==max(ov_results_prio$mean))],
+                          ov_results_rsf$ci_coh1[which(ov_results_rsf$mean==max(ov_results_rsf$mean))])
 names(test_results_cohort1) <- all_models
 
 
-test_results_cohort2 <- c(ov_results_cBoost$ci_cohort2[which(ov_results_cBoost$mean==max(ov_results_cBoost$mean))],ov_results_coxPas$ci_cohort2[which(ov_results_coxPas$mean==max(ov_results_coxPas$mean))],ov_results_coxph$ci_cohort2[which(ov_results_coxph$mean==max(ov_results_coxph$mean))],ov_results_DeepSurv$ci_cohort2[which(ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean))],ov_results_prio$ci_cohort2[which(ov_results_prio$mean==max(ov_results_prio$mean))],ov_results_rsf$ci_cohort2[which(ov_results_rsf$mean==max(ov_results_rsf$mean))])
+test_results_cohort2 <- c(ov_results_cBoost$ci_coh2[which(ov_results_cBoost$mean==max(ov_results_cBoost$mean))],
+                          ov_results_coxPas$ci_coh2[which(ov_results_coxPas$mean==max(ov_results_coxPas$mean))],
+                          ov_results_coxph$ci_coh2[which(ov_results_coxph$mean==max(ov_results_coxph$mean))],
+                          ov_results_DeepSurv$ci_coh2[which(ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean))],
+                          ov_results_prio$ci_coh2[which(ov_results_prio$mean==max(ov_results_prio$mean))],
+                          ov_results_rsf$ci_coh2[which(ov_results_rsf$mean==max(ov_results_rsf$mean))])
 names(test_results_cohort2) <- all_models
 
 # Based on test performance
-test_results_cohort1_based_on_test <- c(max(ov_results_cBoost$ci_cohort1), max(ov_results_coxPas$ci_cohort1), max(ov_results_coxph$ci_cohort1), max(ov_results_DeepSurv$ci_cohort1), max(ov_results_prio$ci_cohort1), max(ov_results_rsf$ci_cohort1))
+test_results_cohort1_based_on_test <- c(max(ov_results_cBoost$ci_coh1), max(ov_results_coxPas$ci_coh1), max(ov_results_coxph$ci_coh1), max(ov_results_DeepSurv$ci_coh1), max(ov_results_prio$ci_coh1), max(ov_results_rsf$ci_coh1))
 names(test_results_cohort1_based_on_test) <- all_models
 
-test_results_cohort2_based_on_test <- c(max(ov_results_cBoost$ci_cohort2), max(ov_results_coxPas$ci_cohort2), max(ov_results_coxph$ci_cohort2), max(ov_results_DeepSurv$ci_cohort2), max(ov_results_prio$ci_cohort2), max(ov_results_rsf$ci_cohort2))
+test_results_cohort2_based_on_test <- c(max(ov_results_cBoost$ci_coh2), max(ov_results_coxPas$ci_coh2), max(ov_results_coxph$ci_coh2), max(ov_results_DeepSurv$ci_coh2), max(ov_results_prio$ci_coh2), max(ov_results_rsf$ci_coh2))
 names(test_results_cohort2_based_on_test) <- all_models
 
 
 ## Exprs Only Models
 # Based on training performance
-test_results_cohort1_exprs_only <- c(ov_results_cBoost_exprs_models$ci_cohort1[which(ov_results_cBoost_exprs_models$mean==max(ov_results_cBoost_exprs_models$mean))],ov_results_coxph_exprs_models$ci_cohort1[which(ov_results_coxph_exprs_models$mean==max(ov_results_coxph_exprs_models$mean))],ov_results_DeepSurv$ci_cohort1[which(ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean))],ov_results_rsf$ci_cohort1[which(ov_results_rsf$mean==max(ov_results_rsf$mean))])
+test_results_cohort1_exprs_only <- c(ov_results_cBoost_exprs_models$ci_coh1[which(ov_results_cBoost_exprs_models$mean==max(ov_results_cBoost_exprs_models$mean))],
+                                     ov_results_coxph_exprs_models$ci_coh1[which(ov_results_coxph_exprs_models$mean==max(ov_results_coxph_exprs_models$mean))],
+                                     ov_results_DeepSurv_exprs_models$ci_coh1[which(ov_results_DeepSurv_exprs_models$mean==max(ov_results_DeepSurv_exprs_models$mean))],
+                                     ov_results_prio_exprs_models$ci_coh1[which(ov_results_prio_exprs_models$mean==max(ov_results_prio_exprs_models$mean))],
+                                     ov_results_rsf_exprs_models$ci_coh1[which(ov_results_rsf_exprs_models$mean==max(ov_results_rsf_exprs_models$mean))])
 names(test_results_cohort1_exprs_only) <- models_expr_based_only
 
 
-test_results_cohort2_exprs_only <- c(ov_results_cBoost_exprs_models$ci_cohort2[which(ov_results_cBoost_exprs_models$mean==max(ov_results_cBoost_exprs_models$mean))],ov_results_coxph_exprs_models$ci_cohort2[which(ov_results_coxph_exprs_models$mean==max(ov_results_coxph_exprs_models$mean))],ov_results_DeepSurv_exprs_models$ci_cohort2[which(ov_results_DeepSurv_exprs_models$mean==max(ov_results_DeepSurv_exprs_models$mean))],ov_results_rsf_exprs_models$ci_cohort2[which(ov_results_rsf_exprs_models$mean==max(ov_results_rsf_exprs_models$mean))])
+test_results_cohort2_exprs_only <- c(ov_results_cBoost_exprs_models$ci_coh2[which(ov_results_cBoost_exprs_models$mean==max(ov_results_cBoost_exprs_models$mean))],
+                                     ov_results_coxph_exprs_models$ci_coh2[which(ov_results_coxph_exprs_models$mean==max(ov_results_coxph_exprs_models$mean))],
+                                     ov_results_DeepSurv_exprs_models$ci_coh2[which(ov_results_DeepSurv_exprs_models$mean==max(ov_results_DeepSurv_exprs_models$mean))],
+                                     ov_results_prio_exprs_models$ci_coh2[which(ov_results_prio_exprs_models$mean==max(ov_results_prio_exprs_models$mean))],
+                                     ov_results_rsf_exprs_models$ci_coh2[which(ov_results_rsf_exprs_models$mean==max(ov_results_rsf_exprs_models$mean))])
 names(test_results_cohort2_exprs_only) <- models_expr_based_only
 
 
 # Based on test performance
-test_results_cohort1_based_on_test_exprs_only <- c(max(ov_results_cBoost_exprs_models$ci_cohort1),  max(ov_results_coxph_exprs_models$ci_cohort1), max(ov_results_DeepSurv_exprs_models$ci_cohort1), max(ov_results_rsf_exprs_models$ci_cohort1))
+test_results_cohort1_based_on_test_exprs_only <- c(max(ov_results_cBoost_exprs_models$ci_coh1),  max(ov_results_coxph_exprs_models$ci_coh1), max(ov_results_DeepSurv_exprs_models$ci_coh1), max(ov_results_prio_exprs_models$ci_coh1), max(ov_results_rsf_exprs_models$ci_coh1))
 names(test_results_cohort1_based_on_test_exprs_only) <- models_expr_based_only
 
-test_results_cohort2_based_on_test_exprs_only <- c(max(ov_results_cBoost_exprs_models$ci_cohort2),  max(ov_results_coxph_exprs_models$ci_cohort2), max(ov_results_DeepSurv_exprs_models$ci_cohort2),  max(ov_results_rsf_exprs_models$ci_cohort2))
+test_results_cohort2_based_on_test_exprs_only <- c(max(ov_results_cBoost_exprs_models$ci_coh2),  max(ov_results_coxph_exprs_models$ci_coh2), max(ov_results_DeepSurv_exprs_models$ci_coh2), max(ov_results_prio_exprs_models$ci_coh2), max(ov_results_rsf_exprs_models$ci_coh2))
 names(test_results_cohort2_based_on_test_exprs_only) <- models_expr_based_only
-
 
 ```
 
 ```{r Create Final Data Sets for Plotting}
-# Results both cohorts train
+# Results both cohorts based on training
 best_test_results_both_cohorts_train <- data.frame(
   Model = rep(all_models, each = 2), 
   ci = as.vector(rbind(test_results_cohort1, test_results_cohort2)),  
   Cohort = rep(c("Cohort 10", "Cohort11"), times = length(all_models)) 
 )
 
-# Results both cohorts test
+# Results both cohorts based on test
 best_test_results_both_cohorts_test <- data.frame(
   Model = rep(all_models, each = 2), 
   ci = as.vector(rbind(test_results_cohort1_based_on_test, test_results_cohort2_based_on_test)),  
   Cohort = rep(c("Cohort 10", "Cohort11"), times = length(all_models)) 
 )
-# Results both cohorts train exprs only
+# Results both cohorts based on train exprs only
 best_test_results_both_cohorts_exprs_only_train <- data.frame(
   Model = rep(models_expr_based_only, each = 2), 
   ci = as.vector(rbind(test_results_cohort1_exprs_only, test_results_cohort2_exprs_only)),  
   Cohort = rep(c("Cohort 10", "Cohort11"), times = length(models_expr_based_only)) 
 )
-# Results both cohorts test exprs only
+# Results both cohorts based on test exprs only
 best_test_results_both_cohorts_exprs_only_test <- data.frame(
   Model = rep(models_expr_based_only, each = 2), 
   ci = as.vector(rbind(test_results_cohort1_based_on_test_exprs_only, test_results_cohort2_based_on_test_exprs_only)),  
   Cohort = rep(c("Cohort 10", "Cohort11"), times = length(models_expr_based_only)) 
 )
-
 ```
 
 ```{r create reference lines}
-# Function for addingg averages
+# Function for adding averages
 add_average_rows <- function(data) {
   result <- data.frame()
   for (i in seq(1, nrow(data), by = 2)) {
@@ -210,12 +234,12 @@ mean_ffpe_score <- 0.701
 weighted_mean_ffpe_score <- 0.698
 best_training_means <- mean(max(ov_results_cBoost$mean), max(ov_results_coxPas$mean), max(ov_results_coxph$mean, max(ov_results_DeepSurv$mean), max(ov_results_rsf$mean), max(ov_results_prio$mean)))
 #mean of all the tst performances of all models
-test_mean_all_models <- mean(c(ov_results_cBoost$ci_cohort1, ov_results_cBoost$ci_cohort2, 
-                         ov_results_coxph$ci_cohort1, ov_results_coxph$ci_cohort2, 
-                         ov_results_DeepSurv$ci_cohort1, ov_results_DeepSurv$ci_cohort2, 
-                         ov_results_rsf$ci_cohort1, ov_results_rsf$ci_cohort2, 
-                         ov_results_coxPas$ci_cohort1, ov_results_coxPas$ci_cohort2, 
-                         ov_results_prio$ci_cohort1, ov_results_prio$ci_cohort2))
+test_mean_all_models <- mean(c(ov_results_cBoost$ci_coh1, ov_results_cBoost$ci_coh2, 
+                         ov_results_coxph$ci_coh1, ov_results_coxph$ci_coh2, 
+                         ov_results_DeepSurv$ci_coh1, ov_results_DeepSurv$ci_coh2, 
+                         ov_results_rsf$ci_coh1, ov_results_rsf$ci_coh2, 
+                         ov_results_coxPas$ci_coh1, ov_results_coxPas$ci_coh2, 
+                         ov_results_prio$ci_coh1, ov_results_prio$ci_coh2))
 # mean of all the training performances of all models
 train_mean_all_models <- mean(c(ov_results_cBoost$mean,
                          ov_results_coxph$mean,

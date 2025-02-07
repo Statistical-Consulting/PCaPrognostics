@@ -15,28 +15,39 @@ library(purrr)
 
 ```
 #Remove this when CSV Files are fixed!
-```{r fix input data}
-ov_results_coxPas <- ov_results_coxPas[,-2]
-ov_results_cBoost <- ov_results_cBoost[,-2]
 
-
-```
 
 
 ```{r load & preparedata}
 # load results overviews
 group_a_pData <- as.data.frame(read_csv('../data/merged_data/pData/imputed/merged_imputed_pData.csv', lazy = TRUE))
-ov_results_cBoost <- as.data.frame(read_csv('../results_modelling_ovs/ov_cBoost.csv', lazy = TRUE))
+
+ov_results_cBoost <- as.data.frame(read_csv('../results_modelling_ovs/ov_GBoost.csv', lazy = TRUE))
 ov_results_coxPas <- as.data.frame(read_csv('../results_modelling_ovs/ov_coxPAS.csv', lazy = TRUE))
 ov_results_coxph <- as.data.frame(read_csv('../results_modelling_ovs/ov_coxph.csv', lazy = TRUE))
 ov_results_DeepSurv <- as.data.frame(read_csv('../results_modelling_ovs/ov_DeepSurv.csv', lazy = TRUE))
 ov_results_prio <- as.data.frame(read_csv('../results_modelling_ovs/ov_prio.csv', lazy = TRUE))
 ov_results_rsf <- as.data.frame(read_csv('../results_modelling_ovs/ov_rsf.csv', lazy = TRUE))
-ordered_datasets <- c("autoencoder", "autoencoder+pData", "common", "common+pData", "intersect", "intersect+pData", "pData")
-ov_results_cBoost <- cbind(ov_results_cBoost, ordered_datasets)
-ov_results_coxph <- cbind(ov_results_coxph, ordered_datasets)
-ov_results_DeepSurv <- cbind(ov_results_DeepSurv, ordered_datasets)
-ov_results_rsf <- cbind(ov_results_rsf, ordered_datasets)
+
+ordered_datasets <- c("AutoEncoder", "pData_AutoEncoder", "Imputed", "pData_Imputed", "Intersection", "pData_Intersection", "pData")
+# Reorder the dataset column and sort the data frame accordingly
+ov_results_cBoost <- ov_results_cBoost %>%
+  mutate(dataset = factor(dataset, levels = ordered_datasets)) %>%
+  arrange(dataset)
+ov_results_coxph <- ov_results_coxph %>%
+  mutate(dataset = factor(dataset, levels = ordered_datasets)) %>%
+  arrange(dataset)
+ov_results_DeepSurv <- ov_results_DeepSurv %>%
+  mutate(dataset = factor(dataset, levels = ordered_datasets)) %>%
+  arrange(dataset)
+ov_results_rsf <- ov_results_rsf %>%
+  mutate(dataset = factor(dataset, levels = ordered_datasets)) %>%
+  arrange(dataset)
+
+ov_results_cBoost$dataset <- ordered_datasets
+ov_results_coxph$dataset <- ordered_datasets
+ov_results_DeepSurv$dataset <- ordered_datasets
+ov_results_rsf$dataset <- ordered_datasets
 
 
 
@@ -44,9 +55,9 @@ ov_results_rsf <- cbind(ov_results_rsf, ordered_datasets)
 ## Filter for the best models only w.r.t exprs based trainin sets, as comparison will be with ffpe score
 
 #cBoost load and filter and find best dataset
-splits_results_cBoost <- as.data.frame(read_csv('../results_modelling_splits/splits_cBoost.csv', lazy = TRUE))
-subset_splits_results <- splits_results_cBoost[splits_results_cBoost$dataset %in% c("AutoEncoder", "Intersection", "Imputed"), ] %>%filter(dataset %in% c("Intersection", "Imputed"))
-splits_best_cBoost <- subset_splits_results %>%
+splits_results_cBoost <- as.data.frame(read_csv('../results_modelling_splits/splits_BBoost.csv', lazy = TRUE))
+subset_splits_results_cBoost <- splits_results_cBoost %>% filter(dataset %in% c("AutoEncoder", "Intersection", "Imputed"))
+splits_best_cBoost <- subset_splits_results_cBoost %>%
   group_by(test_cohort) %>%
   slice_max(order_by = ci, n = 1) %>%
   ungroup()
@@ -56,10 +67,10 @@ splits_results_coxph <- as.data.frame(read_csv('../results_modelling_splits/spli
 subset_splits_results_coxph <- splits_results_coxph %>%
   filter(dataset %in% c("AutoEncoder","Intersection", "Imputed"))
 splits_best_coxph <- subset_splits_results_coxph %>%
-  group_by(testing_cohort) %>%
-  slice_max(order_by = ci_min, n = 1) %>% #ci_min as it worked better than ci_sd
+  group_by(test_cohort) %>%
+  slice_max(order_by = ci, n = 1) %>% 
   ungroup()
-colnames(splits_best_coxph) <- c("...1", "test_cohort", "ci_se", "ci", "model", "dataset")
+
 
 
 # DeepSurv load and filter and find best dataset
@@ -76,16 +87,26 @@ splits_results_rsf <- as.data.frame(read_csv('../results_modelling_splits/splits
 subset_splits_results_rsf <- splits_results_rsf %>%
   filter(dataset %in% c("AutoEncoder","Intersection", "Imputed"))
 splits_best_rsf <- subset_splits_results_rsf %>%
-  group_by(testing_cohort) %>%
+  group_by(test_cohort) %>%
   slice_max(order_by = ci, n = 1) %>%
   ungroup()
-colnames(splits_best_rsf)[colnames(splits_best_rsf)=="testing_cohort"] <- "test_cohort"
+
+# prio load and filter and find best dataset
+splits_results_prio <- as.data.frame(read_csv('../results_modelling_splits/splits_prio.csv', lazy = TRUE))
+subset_splits_results_prio <- splits_results_prio %>%
+  filter(dataset %in% c("gene_blocks"))
+splits_best_prio <- subset_splits_results_prio %>%
+  group_by(test_cohort) %>%
+  slice_max(order_by = ci, n = 1) %>%
+  ungroup()
+
+
 
 
 
 # the same but this time allowing for all mdoels, not just gene based
 # cBoost load and find best dataset
-splits_results_cBoost_all_data <- as.data.frame(read_csv('../results_modelling_splits/splits_cBoost.csv', lazy = TRUE))
+splits_results_cBoost_all_data <- as.data.frame(read_csv('../results_modelling_splits/splits_GBoost.csv', lazy = TRUE))
 splits_best_cBoost_all_data <- splits_results_cBoost_all_data %>%
   group_by(test_cohort) %>%
   slice_max(order_by = ci, n = 1) %>%
@@ -94,11 +115,9 @@ splits_best_cBoost_all_data <- splits_results_cBoost_all_data %>%
 # coxph load and find best dataset
 splits_results_coxph_all_data <- as.data.frame(read_csv('../results_modelling_splits/splits_coxph.csv', lazy = TRUE))
 splits_best_coxph_all_data <- splits_results_coxph_all_data %>%
-  group_by(testing_cohort) %>%
-  slice_max(order_by = ci_min, n = 1) %>%
+  group_by(test_cohort) %>%
+  slice_max(order_by = ci, n = 1) %>%
   ungroup()
-colnames(splits_best_coxph) <- c("...1", "test_cohort", "ci_se", "ci", "model", "dataset")
-colnames(splits_best_coxph_all_data) <- c("...1", "test_cohort", "ci_se", "ci", "model", "dataset")
 
 # DeepSurv load and find best dataset
 splits_results_DeepSurv_all_data <- as.data.frame(read_csv('../results_modelling_splits/splits_DeepSurv.csv', lazy = TRUE))
@@ -110,27 +129,23 @@ splits_best_DeepSurv_all_data <- splits_results_DeepSurv_all_data %>%
 # rsf load and find best dataset
 splits_results_rsf_all_data <- as.data.frame(read_csv('../results_modelling_splits/splits_rsf.csv', lazy = TRUE))
 splits_best_rsf_all_data <- splits_results_rsf_all_data %>%
-  group_by(testing_cohort) %>%
+  group_by(test_cohort) %>%
   slice_max(order_by = ci, n = 1) %>%
   ungroup()
-colnames(splits_best_rsf)[colnames(splits_best_rsf) == "testing_cohort"] <- "test_cohort"
-splits_best_rsf_all_data
-colnames(splits_best_rsf_all_data)[colnames(splits_best_rsf_all_data) == "testing_cohort"] <- "test_cohort"
 
-
-
-
-
+# prio load and find best dataset
+splits_results_prio_all_data <- as.data.frame(read_csv('../results_modelling_splits/splits_prio.csv', lazy = TRUE))
+splits_best_prio_all_data <- splits_results_prio_all_data %>%
+  group_by(test_cohort) %>%
+  slice_max(order_by = ci, n = 1) %>%
+  ungroup()
 
 
 # coxPas load and filter and find best dataset
 splits_results_coxPas <- as.data.frame(read_csv('../results_modelling_splits/splits_coxPAS.csv', lazy = TRUE))
 splits_best_coxPas <- splits_results_coxPas
 
-# prio load and filter and find best dataset
-splits_results_prio <- as.data.frame(read_csv('../results_modelling_splits/splits_prio.csv', lazy = TRUE))
-colnames(splits_results_prio)[colnames(splits_results_prio)=="testing_cohort"] <- "test_cohort"
-splits_best_prio <- splits_results_prio
+
 
 
 splits_results_score <- as.data.frame(read_csv('../results_modelling_splits/splits_score_cindices.csv', lazy = TRUE))
@@ -138,31 +153,20 @@ colnames(splits_results_score)[colnames(splits_results_score) == "c_index"] <- "
 colnames(splits_results_score)[colnames(splits_results_score) == "cohort"] <- "test_cohort"
 splits_best_score <- splits_results_score
 
-all_ov_df <- c("ov_results_cBoost", "ov_results_coxPas", "ov_results_coxph","ov_results_DeepSurv",
-               "ov_results_prio", "ov_results_rsf")
-ov_results_cBoost <- cbind(ov_results_cBoost, ci_mean = rowMeans(ov_results_cBoost[, c(5, 6)], na.rm = TRUE))
-ov_results_coxPas <- cbind(ov_results_coxPas, ci_mean = rowMeans(ov_results_coxPas[, c(5, 6)], na.rm = TRUE))
-ov_results_coxph <- cbind(ov_results_coxph, ci_mean = rowMeans(ov_results_coxph[, c(5, 6)], na.rm = TRUE))
-ov_results_DeepSurv <- cbind(ov_results_DeepSurv, ci_mean = rowMeans(ov_results_DeepSurv[, c(5, 6)], na.rm = TRUE))
-ov_results_prio <- cbind(ov_results_prio, ci_mean = rowMeans(ov_results_prio[, c(4, 5)], na.rm = TRUE))
-ov_results_rsf <- cbind(ov_results_rsf, ci_mean = rowMeans(ov_results_rsf[, c(5, 6)], na.rm = TRUE))
+all_ov_df <- c("ov_results_cBoost", "ov_results_coxPas", "ov_results_coxph",
+               "ov_results_DeepSurv", "ov_results_prio", "ov_results_rsf")
 
 # prepare exprs based models
 ov_results_cBoost_exprs_models <- ov_results_cBoost[c(1, 3, 5),]
 ov_results_coxph_exprs_models <- ov_results_coxph[c(1, 3, 5),]
 ov_results_DeepSurv_exprs_models <- ov_results_DeepSurv[c(1, 3, 5),]
 ov_results_rsf_exprs_models <- ov_results_rsf[c(1, 3, 5),]
-
-
-
-
-
+ov_results_prio_exprs_models <- ov_results_prio[c(2),]
 
 
 ## survival data:
 # 1) Read survival data
 coxph_survival_data <- read_csv("../data/survival_data/predicted_survival_curves_coxph.csv")
-
 ae_deep_surv_survival_data_coh1_high_risk <- read_csv("../data/survival_data/predicted_survival_curves_cohort1_high_risk.csv")
 ae_deep_surv_survival_data_coh1_low_risk  <- read_csv("../data/survival_data/predicted_survival_curves_cohort1_low_risk.csv")
 ae_deep_surv_survival_data_coh2_high_risk <- read_csv("../data/survival_data/predicted_survival_curves_cohort2_high_risk.csv")
@@ -173,17 +177,13 @@ ae_surv_coh1_high_vec <- rowMeans(ae_deep_surv_survival_data_coh1_high_risk[ , -
 ae_surv_coh1_low_vec  <- rowMeans(ae_deep_surv_survival_data_coh1_low_risk[ , -1],  na.rm = TRUE)
 ae_surv_coh2_high_vec <- rowMeans(ae_deep_surv_survival_data_coh2_high_risk[ , -1], na.rm = TRUE)
 ae_surv_coh2_low_vec  <- rowMeans(ae_deep_surv_survival_data_coh2_low_risk[ , -1],  na.rm = TRUE)
-
-
 ```
 
 
 
 ```{r Defining model subsets}
-
-all_models <- c("CatBoost", "PasNet", "PenalizedCox", "DeepSurv","PriorityLasso", "RandomSurvivalForest")
-
-models_expr_based_only <- c("CatBoost", "PenalizedCox","DeepSurv", "RandomSurvivalForest")
+all_models <- c("GBoost", "CoxPN", "CoxPH", "DeepSurv","PrioLasso", "RSF")
+models_expr_based_only <- c("GBoost", "CoxPH","DeepSurv" ,"PrioLasso", "RSF")
 
 ```
 
@@ -204,11 +204,11 @@ rename_map <- c(
 ### Prepare the data for the first boxplot
 ## First boxplot comparing only exprs based models when possible, but still incl.
 ## CoxPAS und Priority Lasso
-splits_best_cBoost$model <- "Gradient Boosting"
-splits_best_coxPas$model <- "Cox-PASNet"
-splits_best_coxph$model <- "Cox"
-splits_best_prio$model <- "Priority Lasso"
-splits_best_rsf$model <- "Random Survival Forest"
+splits_best_cBoost$model <- "GBoost"
+splits_best_coxPas$model <- "CoxPN"
+splits_best_coxph$model <- "CoxPH"
+splits_best_prio$model <- "PrioLasso"
+splits_best_rsf$model <- "RSF"
 splits_best_DeepSurv$model <- "DeepSurv"
 splits_best_score$model <- "ProstaTrend-ffpe"
 
@@ -232,10 +232,11 @@ all_best_splits_data <- all_best_splits_data %>%
 
 ### Prepare the data for the second boxplot
 ## Second box plot compares best models on all data sets with ffpe score
-splits_best_cBoost_all_data$model <- "Gradient Boosting"
-splits_best_coxph_all_data$model <- "Cox"
-splits_best_rsf_all_data$model <- "Random Survival Forest"
+splits_best_cBoost_all_data$model <- "GBoost"
+splits_best_coxph_all_data$model <- "CoxPH"
+splits_best_rsf_all_data$model <- "RSF"
 splits_best_DeepSurv_all_data$model <- "DeepSurv"
+splits_best_prio_all_data$model <- "PrioLasso"
 
 
 
@@ -243,7 +244,7 @@ all_best_splits_data_all_data_sets <- bind_rows(
   splits_best_cBoost_all_data,
   splits_best_coxPas,
   splits_best_coxph_all_data,
-  splits_best_prio,
+  splits_best_prio_all_data,
   splits_best_rsf_all_data,
   splits_best_DeepSurv_all_data,
   splits_best_score
@@ -281,7 +282,7 @@ plot1 <- ggplot(all_best_splits_data[,1:5], aes(x = test_cohort, y = ci)) +
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(face = "bold", size = 13),  
+    plot.title = element_text(face = "bold", size = 12),  
     axis.text.x = element_text(angle = 45, hjust = 1),
     panel.grid = element_blank(),
     panel.background = element_rect(fill = "white", color = NA),
@@ -309,7 +310,7 @@ plot2 <- ggplot(all_best_splits_data_all_data_sets[,1:5], aes(x = test_cohort, y
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(face = "bold", size = 14),  
+    plot.title = element_text(face = "bold", size = 12),  
     axis.text.x = element_text(angle = 45, hjust = 1),
     panel.grid = element_blank(),
     panel.background = element_rect(fill = "white", color = NA),
@@ -317,7 +318,7 @@ plot2 <- ggplot(all_best_splits_data_all_data_sets[,1:5], aes(x = test_cohort, y
   )
 ```
 
-```{r correlation ebtween model performance and % of events }
+```{r correlation between model performance and % of events }
 
 # Berechnung der mean werte pro Test-Cohort
 mean_data <- all_best_splits_data_all_data_sets[,1:5] %>%
@@ -334,6 +335,7 @@ bcr_summary <- group_a_pData %>%
   group_by(cohort) %>%
   summarise(BCR_Percentage = mean(BCR_STATUS == 1, na.rm = TRUE) * 100) %>%
   arrange(desc(BCR_Percentage))
+bcr_summary$BCR_Percentage <- 100 - bcr_summary$BCR_Percentage  
 
 merged_data <- bcr_summary %>%
   inner_join(mean_data, by = c("cohort" = "test_cohort"))
@@ -342,20 +344,15 @@ bcr_performance_cor <- cor(merged_data$BCR_Percentage, merged_data$mean_ci, meth
 
 #### Plot Goal: Using mean performance(mean w.r.t. to the input data set) of each model type
 # on each cohort to check whether to get the correlation for the different model types 
-splits_results_coxph_ci <- splits_results_coxph
-splits_results_coxph_ci$ci<- splits_results_coxph$ci_min
-colnames(splits_results_coxph_ci)[2] <- "test_cohort"
-splits_results_rsf_renamed <- splits_results_rsf
-colnames(splits_results_rsf_renamed)[2] <-  "test_cohort"
 
 models_list <- list(
-  "Gradient Boosting" = splits_results_cBoost,
+  "GBoost" = splits_results_cBoost,
   "DeepSurv" = splits_results_DeepSurv,
-  "RSF" = splits_results_rsf_renamed,
-  "Cox-PASNet" = splits_results_coxPas,
-  "Priority Lasso" = splits_results_prio,
-  "ffpe-Score" = splits_results_score,
-  "Cox PH" = splits_results_coxph_ci
+  "RSF" = splits_results_rsf,
+  "CoxPN" = splits_results_coxPas,
+  "PrioLasso" = splits_results_prio,
+  "ProstaTrend-ffpe" = splits_results_score,
+  "CoxPH" = splits_results_coxph
 )
 
 compute_mean_ci <- function(df) {
@@ -364,7 +361,7 @@ compute_mean_ci <- function(df) {
     summarise(mean_ci = mean(ci, na.rm = TRUE), .groups = "drop")
 }
 
-mean_ci_list <- map(models_list, compute_median_ci)
+mean_ci_list <- map(models_list, compute_mean_ci)
 
 mean_ci_data <- reduce(mean_ci_list, full_join, by = "test_cohort")
 
@@ -390,8 +387,11 @@ correlation_df <- data.frame(
 )
 
 ggplot(correlation_df, aes(x = reorder(model, correlation), y = correlation)) +
-  geom_bar(stat = "identity", fill = "#00706d") +  # Rote Balken für negative Werte
-  coord_flip() +  # Horizontal drehen (damit Balken nach unten zeigen)
+  geom_bar(stat = "identity", fill = "#00706d") +  
+  geom_text(aes(label = round(correlation_df$correlation, 3)),  
+            hjust = ifelse(correlation_df$correlation < 0, 1.2, -0.2),  
+            color = "black", size = 4) +  
+  coord_flip() +  
   labs(
     title = "Korrelation zwischen Modellen und BCR-Percentage",
     x = "Model",
@@ -414,25 +414,18 @@ ggplot(correlation_df, aes(x = reorder(model, correlation), y = correlation)) +
 
 
 ```{r dot plot for performance by data sets }
-#Name main models
-ov_results_cBoost$general_model   <- "Gradient Boosting"
-ov_results_coxph$general_model    <- "Pen. Cox PH"
-ov_results_DeepSurv$general_model <- "DeepSurv"
-ov_results_rsf$general_model      <- "Random Survival Forest"
-ov_results_coxPas$general_model   <- "Cox PASNet"
-ov_results_prio$general_model     <- "Priority Lasso"
 
 # Helper function to add two rows
 add_extra_rows <- function(df) {
   # 1) Create an empty DF with the same columns (0 rows)
   new_df <- df[0, ]
 
-  # 2) Add 2 new rows filled with NA
-  new_df[1:2, ] <- NA
+  # 2) Add 3 new rows filled with NA
+  new_df[1:3, ] <- NA
 
   # 3) Overwrite the columns of interest
-  new_df$ordered_datasets <- c("Block Data", "Pathway Data")
-  new_df$general_model    <- df$general_model[1]
+  new_df$dataset <- c("pData + Block Data", "Block Data", "Pathway Data")
+  new_df$model_class    <- df$model_class[1]
 
   # 4) Combine original data with the new rows
   rbind(df, new_df)
@@ -447,62 +440,74 @@ ov_results_rsf_dot      <- add_extra_rows(ov_results_rsf)
 
 
 # define needed columns
-keep_cols <- c("ordered_datasets", "ci_cohort1", "general_model")
+keep_cols <- c("dataset", "ci_coh1", "model_class")
 
 # add CoxPAS und Priority Lasso
 ov_results_cox_pas_dot <- ov_results_rsf_dot
-ov_results_cox_pas_dot$general_model <- "Cox PASNet"
+ov_results_cox_pas_dot$model_class <- "Cox PASNet"
 ov_results_cox_pas_dot[ , !(names(ov_results_cox_pas_dot) %in% keep_cols)] <- NA
-ov_results_cox_pas_dot$ci_cohort1 <- NA
-ov_results_cox_pas_dot$ci_cohort1[9] <- ov_results_coxPas$ci_cohort1
+ov_results_cox_pas_dot$ci_coh1 <- NA
+ov_results_cox_pas_dot$ci_coh1[10] <- ov_results_coxPas$ci_coh1
 
 ov_results_prio_dot <- ov_results_rsf_dot
-ov_results_prio_dot$general_model <- "Priority Lasso"
+ov_results_prio_dot$model_class <- "Priority Lasso"
 ov_results_prio_dot[ , !(names(ov_results_prio_dot) %in% keep_cols)] <- NA
-ov_results_prio_dot$ci_cohort1 <- NA
-ov_results_prio_dot$ci_cohort1[8] <- ov_results_prio$ci_cohort1
+ov_results_prio_dot$ci_coh1 <- NA
+ov_results_prio_dot$ci_coh1[c(8, 9)] <- ov_results_prio$ci_coh1
 
 # 5) Combine all results (subset to relevant columns)
 combined_results <- bind_rows(
-  ov_results_cBoost_dot[, c("ordered_datasets", "ci_cohort1", "general_model")],
-  ov_results_coxph_dot[, c("ordered_datasets", "ci_cohort1", "general_model")],
-  ov_results_DeepSurv_dot[, c("ordered_datasets", "ci_cohort1", "general_model")],
-  ov_results_rsf_dot[, c("ordered_datasets", "ci_cohort1", "general_model")],
-  ov_results_cox_pas_dot[, c("ordered_datasets", "ci_cohort1", "general_model")],
-  ov_results_prio_dot[, c("ordered_datasets", "ci_cohort1", "general_model")]
+  ov_results_cBoost_dot[, c("dataset", "ci_coh1", "model_class")],
+  ov_results_coxph_dot[, c("dataset", "ci_coh1", "model_class")],
+  ov_results_DeepSurv_dot[, c("dataset", "ci_coh1", "model_class")],
+  ov_results_rsf_dot[, c("dataset", "ci_coh1", "model_class")],
+  ov_results_cox_pas_dot[, c("dataset", "ci_coh1", "model_class")],
+  ov_results_prio_dot[, c("dataset", "ci_coh1", "model_class")]
 )
 
 
 
 # 6) Plot
+model_colors <- c(
+  "CoxPH" = "black",
+  "Priority Lasso" = "black",
+  "Cox PASNet" = "black",
+  "GBoost" = "grey",  
+  "DeepSurv" = "blue",  
+  "RSF" = "green",  
+  "Cox-PASNet" = "purple"
+)
+
 plot1 <- ggplot(
   data = combined_results %>%
-    filter(!is.na(ci_cohort1)) %>%
-    mutate(ci_cohort1 = as.numeric(ci_cohort1)),
-  aes(x = ordered_datasets, y = ci_cohort1, color = general_model)
+    filter(!is.na(ci_coh1)) %>%
+    mutate(ci_coh1 = as.numeric(ci_coh1)),
+  aes(x = dataset, y = ci_coh1, color = model_class)
 ) +
   geom_point(size = 3) +
   scale_y_continuous(limits = c(0.6, 0.8), breaks = c(0.6, 0.7, 0.8)) +
   scale_x_discrete(
     labels = c(
-      "all_data"          = "Block Data + Clin. Data",
-      "autoencoder"       = "Autoencoder",
-      "autoencoder+pData" = "Autoencoder + Clin. Data",
-      "common"            = "Common",
-      "common+pData"      = "Common + Clin. Data",
-      "intersect"         = "Intersect.",
-      "intersect+pData"   = "Intersect. + Clin. Data",
-      "pathways"          = "Pathway Data + Clin. Data",
+      "Block Data"          = "Block Data",
+      "AutoEncoder"       = "Autoencoder",
+      "pData + Block Data" = "Block Data + Clin. Data",
+      "pData_AutoEncoder" = "Autoencoder + Clin. Data",
+      "Imputed"            = "Common",
+      "pData_Imputed"      = "Common + Clin. Data",
+      "Intersection"         = "Intersect.",
+      "pData_Intersection"   = "Intersect. + Clin. Data",
+      "Pathway Data"          = "Pathway Data + Clin. Data",
       "pData"             = "Clin. Data"
     )
   ) +
+  scale_color_manual(values = model_colors) +  # Apply manual color scale
   labs(
     title = "Performance of Models on Cohort 10 by Data Set",
     x = "Data Sets", y = "C-Index", color = "Model"
   ) +
   theme_minimal() +
   theme(
-    plot.title = element_text(face = "bold", size = 14),
+    plot.title = element_text(face = "bold", size = 12),
     axis.text.x = element_text(angle = 45, hjust = 1),
     legend.position = "bottom",
     legend.direction = "horizontal",
@@ -514,13 +519,10 @@ plot1 <- ggplot(
   ) +
   guides(color = guide_legend(nrow = 1))
 
-
-
-
 ```
 
 
-```{r dot plot for performance by data sets }
+```{r Survival Curves for risk groups }
 
 
 # extract times from one of the AE DeepSurv files (cohort1 high risk)
@@ -555,7 +557,7 @@ survival_df_cohort1 <- survival_df_cohort1 %>%
   )
 
 # Plot survival curves
-ggplot( <- , aes(x = TimePoints)) +
+ggplot(survival_df_cohort1, aes(x = TimePoints)) +
   geom_line(aes(y = Survival_DeepSurv_LowRisk,  color = "DeepSurv Low Risk"),  linewidth = 1) +
   geom_line(aes(y = Survival_DeepSurv_HighRisk, color = "DeepSurv High Risk"), linewidth = 1) +
   geom_line(aes(y = Survival_CoxPH_LowRisk,     color = "CoxPH Low Risk"),     linewidth = 1) +
@@ -580,10 +582,10 @@ ggplot( <- , aes(x = TimePoints)) +
   ) +
   theme_minimal() +
   theme(
-    plot.title   = element_text(face = "bold", size = 14),
+    plot.title   = element_text(face = "bold", size = 12),
     legend.title = element_text(size = 12),
     legend.text  = element_text(size = 10),
-    legend.position = "bottom"
+    legend.position = "right"
   ) +
   scale_x_continuous(limits = c(0, 160))
 
