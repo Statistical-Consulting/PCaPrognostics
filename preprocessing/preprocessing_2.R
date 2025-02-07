@@ -1,3 +1,10 @@
+"
+This second preprocessing file covers mainly preprocessing regarding the scores 
+and test cohorts. It is seperate due to the already extensive run time of the 
+first general preprocessing file and because its not necessary for model training.
+All rows can simply be executed to generate all .csv files.
+"
+
 library(readr)
 
 pData <- as.data.frame(read_csv('data/merged_data/pData/imputed/test_pData_imputed.csv', lazy = TRUE))
@@ -16,11 +23,11 @@ pData_cohort2_1_example <- pData_cohort2[1,]
 test_pData_with_scores_cohort1 <- test_pData_with_scores[grep("test_cohort_1", test_pData_with_scores$...1), ]
 test_pData_with_scores_cohort2 <- test_pData_with_scores[grep("test_cohort_2", test_pData_with_scores$...1), ]
 
-# Für Kohorte 1
+# For cohort 1
 low_risk_cohort1 <- subset(test_pData_with_scores_cohort1, risk_score < 0)
 high_risk_cohort1 <- subset(test_pData_with_scores_cohort1, risk_score >= 0)
 
-# Für Kohorte 2
+# For cohort 2
 low_risk_cohort2 <- subset(test_pData_with_scores_cohort2, risk_score < 0)
 high_risk_cohort2 <- subset(test_pData_with_scores_cohort2, risk_score >= 0)
 

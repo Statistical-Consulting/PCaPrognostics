@@ -1,3 +1,10 @@
+"
+This is the main preprocessing file of the project and has to be executed first. 
+To do so, make sure that PCa_cohorts.RDS(containing cohorts from group a) 
+and PCa_cohorts_2.RDS (containing cohorts from group b), as well as 
+Revised_ProstaTrend.Rds are in the data folder. Then the file can simplybe executed
+row by row.
+"
 library(Biobase)
 library(dplyr)
 library(impute)
