@@ -1,2 +1,2 @@
-,model,mean,sd,ci_coh1,ci_coh2
-0,results_intersect_pdata_model3,0.68214864,0.07688051,0.76204157,0.8332548
+,model,mean,sd,model_class,dataset,ci_coh1,ci_coh2
+0,results_intersect_pdata_model3,0.68214864,0.07688051,CoxPN,pathway_genes,0.76204157,0.8332548
