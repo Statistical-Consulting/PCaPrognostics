@@ -1,8 +1,8 @@
 ,model,mean,sd,model_class,dataset,ci_coh1,ci_coh2
 0,deepsurv_autoencoder_final_cv_exprs_only,0.6187560563125731,0.1021346434822914,DeepSurv,AutoEncoder,0.621794,0.688705
 1,deepsurv_autoencoder_pData,0.5396623504066832,0.0512962185420055,DeepSurv,pData_AutoEncoder,0.6247341423745778,0.4312825221916131
-2,result_intersection_cv_common_genes_and_pData,0.6848467639343925,0.0478336609338115,DeepSurv,pData_Imputed,,
-3,result_intersection_cv_common_genes_only,0.686532875694979,0.056659798323605,DeepSurv,Imputed,,
-4,result_intersection_cv_intersect_and_pData,0.6912830240284243,0.0458649697136682,DeepSurv,pData_Intersection,,
-5,result_intersection_cv_intersect_only,0.6741533411080968,0.051412067430797,DeepSurv,Intersection,,
-6,result_intersection_cv_pData_only,0.6732482856228503,0.0502057752408263,DeepSurv,pData,,
+2,result_intersection_cv_common_genes_and_pData,0.6848467639343925,0.0478336609338115,DeepSurv,pData_Imputed,0.6978610,0.7682890
+3,result_intersection_cv_common_genes_only,0.686532875694979,0.056659798323605,DeepSurv,Imputed,0.6627040,0.8172640
+4,result_intersection_cv_intersect_and_pData,0.6912830240284243,0.0458649697136682,DeepSurv,pData_Intersection,0.6794600,0.7480870
+5,result_intersection_cv_intersect_only,0.6741533411080968,0.051412067430797,DeepSurv,Intersection,0.6600780,0.7018670
+6,result_intersection_cv_pData_only,0.6732482856228503,0.0502057752408263,DeepSurv,pData,0.6464410,0.7447200
