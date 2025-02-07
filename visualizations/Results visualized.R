@@ -1,15 +1,31 @@
 library(dplyr)
 library(ggplot2)
+library(readr)
+library(tidyr)
 #################################################################################
 # Test Data Results
+
+
+
+#######Keep this part to properly create the csv files
 ov_results_cBoost <- as.data.frame(read_csv('results_modelling_ovs/ov_cBoost.csv', lazy = TRUE))
-ov_results_cBoost[c(6, 7), ] <- ov_results_cBoost[c(7, 6), ]
-ov_results_cBoost[c(1, 2), ] <- ov_results_cBoost[c(2, 1), ]
-colnames(ov_results_cBoost)[colnames(ov_results_cBoost)=="ci_coh1"] <- "ci_cohort1"
-colnames(ov_results_cBoost)[colnames(ov_results_cBoost)=="ci_coh2"] <- "ci_cohort2"
+if(ov_results_cBoost$model[1] !="cboost_autoencoder_paper") {
+  ov_results_cBoost[c(6, 7), ] <- ov_results_cBoost[c(7, 6), ]
+  ov_results_cBoost[c(1, 2), ] <- ov_results_cBoost[c(2, 1), ]
+  colnames(ov_results_cBoost)[colnames(ov_results_cBoost)=="ci_coh1"] <- "ci_cohort1"
+  colnames(ov_results_cBoost)[colnames(ov_results_cBoost)=="ci_coh2"] <- "ci_cohort2"
+  write.csv(ov_results_cBoost, file.path(".", "results_modelling_ovs", "ov_cBoost.csv"))
+}
+
 ov_results_coxPas <- as.data.frame(read_csv('results_modelling_ovs/ov_coxPAS.csv', lazy = TRUE))
-colnames(ov_results_coxPas)[colnames(ov_results_coxPas)=="ci_coh1"] <- "ci_cohort1"
-colnames(ov_results_coxPas)[colnames(ov_results_coxPas)=="ci_coh2"] <- "ci_cohort2"
+if(colnames(ov_results_coxPas)[5] =="ci_coh1"){
+  colnames(ov_results_coxPas)[colnames(ov_results_coxPas)=="ci_coh1"] <- "ci_cohort1"
+  colnames(ov_results_coxPas)[colnames(ov_results_coxPas)=="ci_coh2"] <- "ci_cohort2"
+  write.csv(ov_results_coxPas, file.path(".", "results_modelling_ovs", "ov_coxPAS.csv"))
+  print("r")
+}
+
+
 ov_results_coxph <- as.data.frame(read_csv('results_modelling_ovs/ov_coxph.csv', lazy = TRUE))
 ov_results_DeepSurv <- as.data.frame(read_csv('results_modelling_ovs/ov_DeepSurv.csv', lazy = TRUE))
 ov_results_prio <- as.data.frame(read_csv('results_modelling_ovs/ov_prio.csv', lazy = TRUE))
@@ -17,17 +33,24 @@ ov_results_rsf <- as.data.frame(read_csv('results_modelling_ovs/ov_rsf.csv', laz
 
 
 
+
+ov_results_DeepSurv$ci_coh1[3:7] <- c(0.6627, 0.6979, 0.6601, 0.6795, 0.6464)
+ov_results_DeepSurv$ci_coh2[3:7] <- c(0.8173, 0.7683, 0.7019, 0.7481, 0.7447)
+ov_results_DeepSurv[c(4,6),3] <- c(0.6777, 0.6982)
+colnames(ov_results_DeepSurv)[colnames(ov_results_DeepSurv)=="ci_coh1"] <- "ci_cohort1"
+colnames(ov_results_DeepSurv)[colnames(ov_results_DeepSurv)=="ci_coh2"] <- "ci_cohort2"
+
+
 #manually adding results of deep surv on test data
 
 if (any(is.na(ov_results_DeepSurv$ci_coh1))) {
   ov_results_DeepSurv$ci_coh1[3:7] <- c(0.6627, 0.6979, 0.6601, 0.6795, 0.6464)
   ov_results_DeepSurv$ci_coh2[3:7] <- c(0.8173, 0.7683, 0.7019, 0.7481, 0.7447)
+  ov_results_DeepSurv[c(4,6),3] <- c(0.6777, 0.6982)
+  colnames(ov_results_DeepSurv)[colnames(ov_results_DeepSurv)=="ci_coh1"] <- "ci_cohort1"
+  colnames(ov_results_DeepSurv)[colnames(ov_results_DeepSurv)=="ci_coh2"] <- "ci_cohort2"
   write.csv(ov_results_DeepSurv, file.path(".", "results_modelling_ovs", "ov_DeepSurv.csv"))
 }
-
-# rename deep surv here in case its changed before
-colnames(ov_results_DeepSurv)[colnames(ov_results_DeepSurv)=="ci_coh1"] <- "ci_cohort1"
-colnames(ov_results_DeepSurv)[colnames(ov_results_DeepSurv)=="ci_coh2"] <- "ci_cohort2"
 
 
 
@@ -35,7 +58,6 @@ ordered_datasets <- c("autoencoder", "autoencoder+pData", "common", "common+pDat
 ov_results_cBoost <- cbind(ov_results_cBoost, ordered_datasets)
 ov_results_coxph <- cbind(ov_results_coxph, ordered_datasets)
 ov_results_DeepSurv <- cbind(ov_results_DeepSurv, ordered_datasets)
-ov_results_DeepSurv[c(4,6),4] <- c(0.6777, 0.6982)
 ov_results_rsf <- cbind(ov_results_rsf, ordered_datasets)
 
 
@@ -168,11 +190,13 @@ ggplot(all_best_splits_data[,1:5], aes(x = test_cohort, y = ci)) +
   ) +
   theme_minimal() +
   theme(
+    plot.title = element_text(face = "bold", size = 14),  # Überschrift fett und Schriftgröße 14
     axis.text.x = element_text(angle = 45, hjust = 1),
     panel.grid = element_blank(),
     panel.background = element_rect(fill = "white", color = NA),
     plot.background = element_rect(fill = "white", color = NA)
   )
+
 
 
 #################################################################################
@@ -242,7 +266,6 @@ combined_results <- rbind(
 # Berechnung der Mittelwerte
 mean_values <- aggregate(ci_cohort1 ~ ordered_datasets, data = combined_results, FUN = mean)
 
-# Erstellen des ggplot
 ggplot() +
   geom_point(
     data = combined_results %>% 
@@ -252,8 +275,21 @@ ggplot() +
     size = 3
   ) +
   scale_y_continuous(
-    limits = c(0.48, 0.85),   # Setze die Grenzen der Y-Achse
+    limits = c(0.6, 0.8),   # Setze die Grenzen der Y-Achse
     breaks = c(0.6, 0.7, 0.8)  # Zeige nur die gewünschten Werte
+  ) +
+  scale_x_discrete(
+    labels = c(
+      "all_data" = "Block Data",
+      "autoencoder" = "Autoencoder",
+      "autoencoder+pData" = "Autoencoder + Clin. Data",
+      "common" = "Common ",
+      "common+pData" = "Common + Clin. Data",
+      "intersect" = "Intersect. ",
+      "intersect+pData" = "Intersect. + Clin. Data",
+      "pathways" = "Pathway Data",
+      "pData" = "Clin. Data"
+    )
   ) +
   labs(
     title = "Performance of Models on Cohort 10 by Data Set",
@@ -263,14 +299,15 @@ ggplot() +
   ) +
   theme_minimal() +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),  # Rotiert die X-Achsen-Beschriftung
+    plot.title = element_text(face = "bold", size = 14),  # Überschrift fett und Schriftgröße 14
+    axis.text.x = element_text(angle = 45, hjust = 1),    # Rotiert die X-Achsen-Beschriftung
     legend.position = "bottom",                           # Legende unten platzieren
     legend.direction = "horizontal",                      # Legende horizontal ausrichten
     legend.box = "horizontal",                            # Legendenbox horizontal ausrichten
     legend.justification = "center",                      # Legende zentrieren
     legend.margin = margin(t = 10, unit = "pt"),          # Abstand zur Legende vergrößern
-    legend.text = element_text(size = 10),               # Größe des Legendentexts
-    legend.title = element_text(size = 12)               # Größe des Legendentitels
+    legend.text = element_text(size = 10),                # Größe des Legendentexts
+    legend.title = element_text(size = 12)                # Größe des Legendentitels
   ) +
   guides(
     color = guide_legend(nrow = 1)  # Alle Legendenwerte in eine Zeile
@@ -280,10 +317,14 @@ ggplot() +
 
 
 
+###### Calc avrg performances exprs + pdata vs only one
+#only one
+comb_res_only_one <- combined_results[ combined_results$ordered_datasets %in% c( "common", "pData", "intersect" ) ,]
+#both
+comb_res_without_pData <- combined_results[ combined_results$ordered_datasets %in% c( "common+pData", "pathways", "intersect+pData", "autoencoder+pData",  "all_data" ) ,]
 
-
-
-
+mean(as.numeric(comb_res_without_pData$ci_cohort1), na.rm = TRUE)
+mean(as.numeric(comb_res_only_one$ci_cohort1), na.rm = TRUE)
 
 
 
@@ -403,9 +444,6 @@ survival_df_cohort1 <- survival_df_cohort1 %>%
 survival_df_cohort1 <- survival_df_cohort1 %>%
   fill(Survival_CoxPH_LowRisk, Survival_CoxPH_HighRisk, Survival_DeepSurv_LowRisk, Survival_DeepSurv_HighRisk, .direction = "down")
 
-# Ergebnis anzeigen
-print(head(survival_df_cohort1))
-
 
 
 
@@ -430,13 +468,14 @@ ggplot(survival_df_cohort1, aes(x = TimePoints)) +
   ) +
   theme_minimal() +
   scale_color_manual(values = c(
-    "DeepSurv Low Risk" = "blue", 
-    "DeepSurv High Risk" = "red", 
-    "CoxPH Low Risk" = "yellow", 
-    "CoxPH High Risk" = "#00706d"
+    "DeepSurv Low Risk" = "red", 
+    "DeepSurv High Risk" = "#ffcd66", 
+    "CoxPH Low Risk" = "darkblue", 
+    "CoxPH High Risk" = "blue"
   )) +
   scale_x_continuous(limits = c(0, 160)) +  # Begrenzung der x-Achse auf 0 bis 160
   theme(
+    plot.title = element_text(face = "bold", size = 14),  # Überschrift fett und Schriftgröße 14
     legend.title = element_text(size = 12), 
     legend.text = element_text(size = 10)
   )
@@ -465,7 +504,38 @@ test_results_cohort2_selected_data <- c(ov_results_cBoost[ov_results_cBoost$mean
                                         ov_results_rsf[ov_results_rsf$mean==max(ov_results_rsf$mean),][,2])
 test_results_cohort2 <- c(ov_results_cBoost$ci_cohort2[which(ov_results_cBoost$mean==max(ov_results_cBoost$mean))],ov_results_coxPas$ci_cohort2[which(ov_results_coxPas$mean==max(ov_results_coxPas$mean))],ov_results_coxph$ci_cohort2[which(ov_results_coxph$mean==max(ov_results_coxph$mean))],ov_results_DeepSurv$ci_cohort2[which(ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean))],ov_results_prio$ci_cohort2[which(ov_results_prio$mean==max(ov_results_prio$mean))],ov_results_rsf$ci_cohort2[which(ov_results_rsf$mean==max(ov_results_rsf$mean))])
 
-# Find best performances for both respective models cohorts without pData 
+
+
+
+
+
+
+###The same with the best models based on test data
+models <- c("CatBoost", "PasNet", "PenalizedCox", "DeepSurv","PriorityLasso", "RandomSurvivalForest")
+test_results_cohort1_selected_data_based_on_test <- c(ov_results_cBoost[ov_results_cBoost$ci_cohort1==max(ov_results_cBoost$ci_cohort1),][,2], 
+                                        ov_results_coxPas[ov_results_coxPas$ci_cohort1==max(ov_results_coxPas$ci_cohort1),][,2],
+                                        ov_results_coxph[ov_results_coxph$ci_cohort1==max(ov_results_coxph$ci_cohort1),][,2],
+                                        ov_results_DeepSurv[ov_results_DeepSurv$ci_cohort1==max(ov_results_DeepSurv$ci_cohort1),][,3],
+                                        "prio_lasso_all_data",
+                                        ov_results_rsf[ov_results_rsf$ci_cohort1==max(ov_results_rsf$ci_cohort1),][,2])
+test_results_cohort1_based_on_test <- c(max(ov_results_cBoost$ci_cohort1), max(ov_results_coxPas$ci_cohort1), max(ov_results_coxph$ci_cohort1), max(ov_results_DeepSurv$ci_cohort1), max(ov_results_prio$ci_cohort1), max(ov_results_rsf$ci_cohort1))
+test_results_cohort2_selected_data_based_on_test <- c(ov_results_cBoost[ov_results_cBoost$ci_cohort2==max(ov_results_cBoost$ci_cohort2),][,2], 
+                                        ov_results_coxPas[ov_results_coxPas$ci_cohort2==max(ov_results_coxPas$ci_cohort2),][,2],
+                                        ov_results_coxph[ov_results_coxph$ci_cohort2==max(ov_results_coxph$ci_cohort2),][,2],
+                                        ov_results_DeepSurv[ov_results_DeepSurv$ci_cohort2==max(ov_results_DeepSurv$ci_cohort2),][,3],
+                                        "prio_lasso_all_data",
+                                        ov_results_rsf[ov_results_rsf$ci_cohort2==max(ov_results_rsf$ci_cohort2),][,2])
+test_results_cohort2_based_on_test <- c(max(ov_results_cBoost$ci_cohort2), max(ov_results_coxPas$ci_cohort2), max(ov_results_coxph$ci_cohort2), max(ov_results_DeepSurv$ci_cohort2), max(ov_results_prio$ci_cohort2), max(ov_results_rsf$ci_cohort2))
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -475,7 +545,7 @@ ov_results_cBoost_exprs_models <- ov_results_cBoost[c(1, 3, 5),]
 ov_results_coxph_exprs_models <- ov_results_coxph[c(1, 3, 5),]
 ov_results_DeepSurv_exprs_models <- ov_results_DeepSurv[c(1, 3, 5),]
 ov_results_rsf_exprs_models <- ov_results_rsf[c(1, 3, 5),]
-ov_results_prio_exprs_models <- ov_results_prio
+
 
 models_expr_based <- c("CatBoost", "PenalizedCox","DeepSurv",   "PriorityLasso", "RandomSurvivalForest")
 test_results_cohort1_selected_data_exprs_data_only <- c(ov_results_cBoost[ov_results_cBoost$mean==max(ov_results_cBoost$mean),][,2], 
@@ -483,13 +553,13 @@ test_results_cohort1_selected_data_exprs_data_only <- c(ov_results_cBoost[ov_res
                                                         ov_results_DeepSurv[ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean),][,3],
                                                         "prio_lasso_all_data",
                                                         ov_results_rsf[ov_results_rsf$mean==max(ov_results_rsf$mean),][,2])
-test_results_cohort1 <- c(ov_results_cBoost$ci_cohort1[which(ov_results_cBoost$mean==max(ov_results_cBoost$mean))],ov_results_coxph$ci_cohort1[which(ov_results_coxph$mean==max(ov_results_coxph$mean))],ov_results_DeepSurv$ci_cohort1[which(ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean))],ov_results_prio$ci_cohort1[which(ov_results_prio$mean==max(ov_results_prio$mean))],ov_results_rsf$ci_cohort1[which(ov_results_rsf$mean==max(ov_results_rsf$mean))])
+test_results_cohort1_exprs_only <- c(ov_results_cBoost$ci_cohort1[which(ov_results_cBoost$mean==max(ov_results_cBoost$mean))],ov_results_coxph$ci_cohort1[which(ov_results_coxph$mean==max(ov_results_coxph$mean))],ov_results_DeepSurv$ci_cohort1[which(ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean))],ov_results_prio$ci_cohort1[which(ov_results_prio$mean==max(ov_results_prio$mean))],ov_results_rsf$ci_cohort1[which(ov_results_rsf$mean==max(ov_results_rsf$mean))])
 test_results_cohort2_selected_data_exprs_data_only <- c(ov_results_cBoost[ov_results_cBoost$mean==max(ov_results_cBoost$mean),][,2], 
                                                         ov_results_coxph[ov_results_coxph$mean==max(ov_results_coxph$mean),][,2],
                                                         ov_results_DeepSurv[ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean),][,3],
                                                         "prio_lasso_all_data",
                                                         ov_results_rsf[ov_results_rsf$mean==max(ov_results_rsf$mean),][,2])
-test_results_cohort2 <- c(ov_results_cBoost$ci_cohort2[which(ov_results_cBoost$mean==max(ov_results_cBoost$mean))],ov_results_coxph$ci_cohort2[which(ov_results_coxph$mean==max(ov_results_coxph$mean))],ov_results_DeepSurv$ci_cohort2[which(ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean))],ov_results_prio$ci_cohort2[which(ov_results_prio$mean==max(ov_results_prio$mean))],ov_results_rsf$ci_cohort2[which(ov_results_rsf$mean==max(ov_results_rsf$mean))])
+test_results_cohort2_exprs_only <- c(ov_results_cBoost$ci_cohort2[which(ov_results_cBoost$mean==max(ov_results_cBoost$mean))],ov_results_coxph$ci_cohort2[which(ov_results_coxph$mean==max(ov_results_coxph$mean))],ov_results_DeepSurv$ci_cohort2[which(ov_results_DeepSurv$mean==max(ov_results_DeepSurv$mean))],ov_results_prio$ci_cohort2[which(ov_results_prio$mean==max(ov_results_prio$mean))],ov_results_rsf$ci_cohort2[which(ov_results_rsf$mean==max(ov_results_rsf$mean))])
 
 # Create Data Frames for all input data sets
 best_test_results_both_cohorts <- data.frame(
@@ -501,6 +571,21 @@ best_test_results_cohort_1 <- data.frame(
   Model = rep(models), 
   ci = c(test_results_cohort1)
 )
+
+# Create Data Frames for all input data sets
+best_test_results_both_cohorts_test_cohort_based <- data.frame(
+  Model = rep(models, each = 2), 
+  ci = as.vector(rbind(test_results_cohort1_based_on_test, test_results_cohort2_based_on_test)),  
+  Gruppe = rep(c("A", "B"), times = length(models)) 
+)
+best_test_results_cohort_1_test_cohort_based <- data.frame(
+  Model = rep(models), 
+  ci = c(test_results_cohort1_based_on_test)
+)
+
+
+
+
 # Create Data Frames for exprs based input data sets only
 best_test_results_both_cohorts_exprs_based <- data.frame(
   Model = rep(models_expr_based, each = 2), 
@@ -516,7 +601,7 @@ best_test_results_cohort_1_exprs_based <- data.frame(
 
 
 
-## Plots for both cohorts
+## Plots for both cohorts preprocessing
 colnames(best_test_results_both_cohorts) <- c("Model", "ci", "Cohort")
 colnames(best_test_results_both_cohorts_exprs_based) <- c("Model", "ci", "Cohort")
 
@@ -535,6 +620,27 @@ best_test_results_both_cohorts_exprs_based$ci <- as.numeric(best_test_results_bo
 
 
 best_test_results_both_cohorts$Model <- factor(best_test_results_both_cohorts$Model, levels = models)
+
+
+## Plots for both cohorts preprocessing for test data based plots
+colnames(best_test_results_both_cohorts_test_cohort_based) <- c("Model", "ci", "Cohort")
+colnames(best_test_results_both_cohorts_exprs_based) <- c("Model", "ci", "Cohort")
+
+
+best_test_results_both_cohorts_test_cohort_based$Cohort <- ifelse(best_test_results_both_cohorts_test_cohort_based$Cohort == "A", "10",
+                                                ifelse(best_test_results_both_cohorts_test_cohort_based$Cohort == "B", "11", best_test_results_both_cohorts_test_cohort_based$Cohort))
+
+
+
+
+
+best_test_results_both_cohorts_test_cohort_based$ci <- as.numeric(best_test_results_both_cohorts_test_cohort_based$ci)
+
+
+
+
+
+best_test_results_both_cohorts_test_cohort_based$Model <- factor(best_test_results_both_cohorts_test_cohort_based$Model, levels = models)
 
 
 
@@ -587,7 +693,7 @@ ggplot(best_test_results_both_cohorts, aes(y = Model, x = ci, group = Cohort)) +
 
 
 
-# Only expression based iputs
+# Only expression based inputs
 
 best_test_results_both_cohorts_exprs_based$Model <- factor(best_test_results_both_cohorts_exprs_based$Model, levels = models_expr_based)
 
@@ -781,12 +887,16 @@ ggplot(best_test_results_both_cohorts, aes(y = Model, x = ci, group = Cohort)) +
   
   # Beschriftungen & Theme
   labs(
-    title = "Best Models on Group B vs. Average Performance over All Models",
+    title = "Performances of Best Models vs. All Models Benchmark",
     x = "C-Index",
     y = "Model",
     color = "Cohort"  
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),  # Überschrift fett und Schriftgröße 14
+    axis.text.x = element_text(angle = 45, hjust = 1)     # Optional: Anpassung der X-Achsen-Beschriftung
+  )
 
 
 # Plot with best models avrg reference
@@ -841,14 +951,14 @@ ggplot(best_test_results_both_cohorts, aes(y = Model, x = ci, group = Cohort)) +
 
 
 best_test_results_both_cohorts_with_avrg <- data.frame()
-for (i in seq(1, nrow(best_test_results_both_cohorts), by = 2)) {
+for (i in seq(1, nrow(best_test_results_both_cohorts_test_cohort_based), by = 2)) {
   # Originalzeilen hinzufügen
-  best_test_results_both_cohorts_with_avrg <- rbind(best_test_results_both_cohorts_with_avrg, best_test_results_both_cohorts[i, ], best_test_results_both_cohorts[i + 1, ])
+  best_test_results_both_cohorts_with_avrg <- rbind(best_test_results_both_cohorts_with_avrg, best_test_results_both_cohorts_test_cohort_based[i, ], best_test_results_both_cohorts_test_cohort_based[i + 1, ])
   
   # Durchschnittszeile berechnen und hinzufügen
   avg_row <- data.frame(
-    Model = best_test_results_both_cohorts$Model[i],
-    ci = mean(c(best_test_results_both_cohorts$ci[i], best_test_results_both_cohorts$ci[i + 1])),
+    Model = best_test_results_both_cohorts_test_cohort_based$Model[i],
+    ci = mean(c(best_test_results_both_cohorts_test_cohort_based$ci[i], best_test_results_both_cohorts_test_cohort_based$ci[i + 1])),
     Cohort = "Average"
   )
   best_test_results_both_cohorts_with_avrg <- rbind(best_test_results_both_cohorts_with_avrg, avg_row)
@@ -874,7 +984,7 @@ ggplot(best_test_results_both_cohorts_with_avrg, aes(y = Model, x = ci, group = 
   size = 0.4) +
   
   # Blaue Referenzlinie
-  geom_vline(xintercept = avrg_best_models_performances, color = "blue") +
+  geom_vline(xintercept = avrg_all_models_performances, color = "blue") +
   
   # Punkte für die Werte (inkl. Average)
   geom_point(aes(color = Cohort), size = 2) +
@@ -891,69 +1001,19 @@ ggplot(best_test_results_both_cohorts_with_avrg, aes(y = Model, x = ci, group = 
   
   # Beschriftungen & Theme
   labs(
-    title = "Model Performances with Two Values vs. Risk Score Reference",
+    title = "Performances of Best Models vs. All Models Benchmark",
     x = "C-Index",
     y = "Model",
     color = "Cohort"  # Legendentitel geändert
   ) +
-  theme_minimal()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#####################################################################
-#feature importance grafik
-
-
-
-#dummy
-df_effect <- data.frame(
-  feature = c("ENSG00000138356", "ENSG00000105664", "ENSG00000164292", "GLEASON_SCORE"),
-  effect = c(0.4, -0.7, 0.6, -0.3)
-)
-
-df_count <- data.frame(
-  feature = c("ENSG00000138356", "ENSG00000105664", "ENSG00000164292", "GLEASON_SCORE"),
-  count = c(5, 10, 3, 7)
-)
-
-
-df_combined <- df_effect %>%
-  left_join(df_count, by = "feature")
-
-# Effektgröße visualisieren
-plot_effect <- ggplot(df_combined, aes(x = feature, y = effect, fill = effect > 0)) +
-  geom_bar(stat = "identity", show.legend = FALSE) +
-  scale_fill_manual(values = c("turquoise", "blue")) + # Türkis für negativ, Blau für positiv
   theme_minimal() +
-  labs(title = "Effektgrößen", x = "Feature", y = "Effect Size") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(
+    plot.title = element_text(hjust = 0, size = 14, face = "bold"),  # Titel linksbündig und fett
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
 
-# Anzahl der Modelle visualisieren
-plot_count <- ggplot(df_combined, aes(x = feature, y = count)) +
-  geom_bar(stat = "identity", fill = "darkblue") + # Dunkelblau für Balken
-  theme_minimal() +
-  labs(title = "Anzahl der Modelle", x = "Feature", y = "Count") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-# Anzeigen der Plots
-print(plot_effect)
-print(plot_count)
 
 

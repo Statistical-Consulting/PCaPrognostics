@@ -4,6 +4,7 @@ library(tidyr)
 library(reshape2)
 library(readr)
 library(Biobase)
+library(forcats)
 #recodinBiobase#recoding for all  data
 #recode(
 #  all_pData_MONTH_TO_BCR$study,
@@ -59,8 +60,8 @@ load_cohorts <- function(rds_file_paths) {
   }
   return(all_cohorts)
 }
-train_cohorts <- load_cohorts( "PCa_cohorts.Rds")
-train_cohorts$Stockholm_2016_Ross_Adams$pData$AGE
+train_cohorts <- load_cohorts("PCa_cohorts.Rds")
+
 train_cohorts$Stockholm_2016_Ross_Adams$pData$AGE <- 
   ifelse(train_cohorts$Stockholm_2016_Ross_Adams$pData$AGE == "unknown", 
          NA, 
@@ -86,42 +87,54 @@ train_exprs_merged_all_genes<- exprs <- as.data.frame(read_csv('data/merged_data
 ################################################################################################################
 #Tissue Bar Plot for train data
 
+library(ggplot2)
+library(tidyr)
+
+# Train- und Test-Tissue-Counts erstellen
 train_tissue_counts <- table(train_pData$TISSUE)
 test_pData$TISSUE[test_pData$TISSUE == "fresh-frozen"] <- "Fresh_frozen"
-
+train_tissue_counts <- table(train_pData$TISSUE)
 test_tissue_counts <- table(test_pData$TISSUE)
-
 
 all_tissue_types <- union(names(train_tissue_counts), names(test_tissue_counts))
 train_tissue_counts <- train_tissue_counts[all_tissue_types]
 test_tissue_counts <- test_tissue_counts[all_tissue_types]
 
-
+# NA-Werte durch 0 ersetzen
 train_tissue_counts[is.na(train_tissue_counts)] <- 0
 test_tissue_counts[is.na(test_tissue_counts)] <- 0
 
-
+# Daten in ein DataFrame umwandeln
 stacked_counts <- rbind(train_tissue_counts, test_tissue_counts)
 rownames(stacked_counts) <- c("Group A", "Group B")
 
+# Konvertierung in ein DataFrame für ggplot2
+df <- as.data.frame(t(stacked_counts))
+df$Tissue_Type <- rownames(df)
+df_long <- pivot_longer(df, -Tissue_Type, names_to = "Group", values_to = "Count")
 
-bar_colors <- c("#ffcd66", "#00706d" )
+ggplot(df_long, aes(x = Tissue_Type, y = Count, fill = Group)) +
+  geom_bar(stat = "identity", position = position_stack(reverse = TRUE)) +  # Gelben Balken (Group A) nach unten verschieben
+  scale_fill_manual(values = c("Group A" = "#ffcd66", "Group B" = "#00706d")) +
+  labs(
+    title = "Number of patients by tissue type",
+    x = "Tissue Type",
+    y = "Number of patients",
+    fill = "Group"
+  ) +
+  scale_x_discrete(labels = c("FFPE" = "FFPE", "Fresh_frozen" = "Fresh-Frozen", "Snap_frozen" = "Snap-Frozen")) +  # X-Achsen-Beschriftungen ändern
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14, hjust = 0),  # Überschrift fett, Größe 14, linksbündig
+    axis.text.x = element_text(angle = 45, hjust = 1)               # X-Achse rotieren
+  )
 
-
-barplot(
-  stacked_counts,
-  main = "Number of patients by tissue type",
-  xlab = "Tissue Type",
-  ylab = "Number of patients",
-  col = bar_colors,
-  names.arg = c("Fresh Frozen", "FFPE", "Snap Frozen"),
-  legend.text = rownames(stacked_counts),
-  args.legend = list(x = "topright") 
-)
 
 
 ################################################################################################################
 #Boxplot for age of train and test
+
+
 
 # Mapping der STUDY-Namen zu Kohortennamen
 rename_map <- c(
@@ -139,34 +152,43 @@ rename_map <- c(
 )
 
 # Definieren der gewünschten Reihenfolge der Kohorten
-desired_order <- rename_map
+desired_order <- rename_map  # 'Cohort 1', 'Cohort 2', etc.
 
-# Sicherstellen, dass `AGE` numerisch ist
+# Sicherstellen, dass AGE numerisch ist und Hinzufügen der COHORT_TYPE-Spalte
 train_pData_AGE <- train_pData %>%
-  mutate(AGE = as.numeric(AGE))
+  mutate(
+    AGE = as.numeric(AGE),
+    COHORT_TYPE = "Group 1"  # Trainingsdaten markieren
+  )
 
 test_pData_AGE <- test_pData %>%
-  mutate(AGE = as.numeric(AGE))
+  mutate(
+    AGE = as.numeric(AGE),
+    COHORT_TYPE = "Group 2"  # Testdaten markieren
+  )
 
-# Kombinieren von Trainings- und Testdaten mit Zuordnung zu Gruppen
-all_pData_AGE <- bind_rows(
-  train_pData_AGE %>% mutate(COHORT_TYPE = "Group A"),  # Trainingsdaten hinzufügen
-  test_pData_AGE %>% mutate(COHORT_TYPE = "Group B")    # Testdaten hinzufügen
-)
+# Kombinieren von Trainings- und Testdaten mit bind_rows
+all_pData_AGE <- bind_rows(train_pData_AGE[, c(1, 2, 10)], test_pData_AGE[, c(1, 2, 10)])
 
 # Verarbeitung der kombinierten Daten
 all_pData_AGE <- all_pData_AGE %>%
   mutate(
-    AGE = as.numeric(AGE),                           # Sicherstellen, dass AGE numerisch ist
-    STUDY = rename_map[STUDY]                         # Umbenennen der STUDY-Namen zu Kohortennamen
+    STUDY = rename_map[STUDY]  # Umbenennen der STUDY-Namen zu Kohortennamen
   ) %>%
   mutate(
-    STUDY = factor(STUDY, levels = desired_order)     # Festlegen der Faktorstufen entsprechend der gewünschten Reihenfolge
+    STUDY = factor(STUDY, levels = desired_order)  # Festlegen der Faktorstufen entsprechend der gewünschten Reihenfolge
   ) %>%
   complete(
     STUDY = factor(desired_order, levels = desired_order),  # Sicherstellen, dass alle Kohortenstufen vorhanden sind
-    fill = list(AGE = NA, COHORT_TYPE = "NA")              # Auffüllen fehlender Werte
+    fill = list(AGE = NA, COHORT_TYPE = "NA")  # Fehlende Werte auffüllen
+  ) %>%
+  mutate(
+    COHORT_TYPE = factor(COHORT_TYPE, levels = c("Group 1", "Group 2", "NA"))  # Sicherstellen, dass 'COHORT_TYPE' als Faktor definiert ist
   )
+
+# Überprüfen der Struktur des Datensatzes (optional, aber empfohlen)
+str(all_pData_AGE)
+head(all_pData_AGE)
 
 # Erstellung des Boxplots
 ggplot(all_pData_AGE, aes(x = STUDY, y = AGE, fill = COHORT_TYPE)) +
@@ -174,11 +196,11 @@ ggplot(all_pData_AGE, aes(x = STUDY, y = AGE, fill = COHORT_TYPE)) +
   geom_jitter(data = all_pData_AGE %>% filter(!is.na(AGE)),  # Punkte nur für nicht-NA-Werte
               aes(color = COHORT_TYPE), width = 0.2, alpha = 0.6) +
   scale_fill_manual(
-    values = c("Group A" = "#ffcd66", "Group B" = "#00706d", "NA" = "white"),
+    values = c("Group 1" = "#ffcd66", "Group 2" = "#00706d", "NA" = "white"),
     na.value = "white"  # Farbe für NA-Werte
   ) + 
   scale_color_manual(
-    values = c("Group A" = "yellow", "Group B" = "#0c4252", "NA" = "grey")
+    values = c("Group 1" = "yellow", "Group 2" = "#0c4252", "NA" = "grey")
   ) + 
   theme_minimal() +
   labs(
@@ -189,8 +211,10 @@ ggplot(all_pData_AGE, aes(x = STUDY, y = AGE, fill = COHORT_TYPE)) +
     color = "Group"
   ) +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1) # X-Achse-Beschriftung rotieren
+    plot.title = element_text(face = "bold", size = 14),  # Überschrift fett und Größe 14
+    axis.text.x = element_text(angle = 45, hjust = 1)     # X-Achse-Beschriftung rotieren
   )
+
 
 
 ################################################################################################################
@@ -264,7 +288,7 @@ ggplot(gleason_percent, aes(x = as.factor(Score), y = Percentage, fill = Group))
     axis.text.x = element_text(angle = 0, hjust = 0.5, size = 10),
     axis.text.y = element_text(size = 10),
     axis.title = element_text(size = 12),
-    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.title = element_text(hjust = 0, size = 14, face = "bold"),  # Überschrift linksbündig (hjust = 0)
     legend.position = "right",  # Legende nach rechts verschieben
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10)
@@ -277,6 +301,7 @@ ggplot(gleason_percent, aes(x = as.factor(Score), y = Percentage, fill = Group))
     color = "black"  # Farbe der Textbeschriftungen für bessere Lesbarkeit
   ) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1)))  # Raum für Text über den Balken
+
 
 
 
@@ -339,6 +364,8 @@ psa_data <- bind_rows(
     mutate(Group = "Test")
 )
 
+
+
 # Definieren der Mapping-Tabelle von STUDY zu Cohort
 rename_map <- c(
   "Atlanta_2014_Long" = "Cohort 1",
@@ -357,13 +384,15 @@ rename_map <- c(
 # Anwenden des Mappings und Umwandeln in einen geordneten Faktor
 psa_data <- psa_data %>%
   mutate(
-    Cohort = recode(STUDY, !!!rename_map),
-    Cohort = factor(Cohort, levels = paste0("Cohort ", 1:11))
+    Cohort = recode(STUDY, !!!rename_map),  # Mapping von STUDY zu Cohort
+    Cohort = factor(Cohort, levels = paste0("Cohort ", 1:11))  # Reihenfolge festlegen
   ) %>%
   # Reihenfolge umkehren, damit Cohort 1 oben ist
   mutate(
     Cohort = fct_rev(Cohort)
   )
+
+
 
 # Definieren der Farbgruppen
 psa_data <- psa_data %>%
@@ -373,7 +402,7 @@ psa_data <- psa_data %>%
 
 # Definieren der Farbzuweisung für die beiden Gruppen
 fill_colors <- c("Group A" = "#ffcd66", "Group B" = "#00706d")
-color_colors <- c("Group A" = "yellow", "Group B" = "#0c4252")
+color_colors <- c("Group A" = "orange", "Group B" = "#0c4252")
 
 # Erstellen des Boxplots für alle Daten mit angepasster Legende
 ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
@@ -384,7 +413,7 @@ ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
   scale_x_log10() +  
   labs(
     title = "Distribution of PSA Values by Cohort",
-    x = "Log10(PSA Value)",
+    x = "PSA Value (Log Scale)",
     y = "Cohort"
   ) +
   theme_minimal() +
@@ -393,6 +422,7 @@ ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10)
   )
+
 
 
 # Erstellen des Boxplots mit eingeschränktem X-Bereich (0 bis 100) und angepasster Legende
@@ -417,39 +447,6 @@ ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
 
 
 
-# Sicherstellen, dass PRE_OPERATIVE_PSA numerisch ist
-train_pData$PRE_OPERATIVE_PSA <- as.numeric(train_pData$PRE_OPERATIVE_PSA)
-test_pData$PRE_OPERATIVE_PSA <- as.numeric(test_pData$PRE_OPERATIVE_PSA)
-
-# Kombinieren der Trainings- und Testdaten mit einer neuen Spalte "Group"
-psa_data <- bind_rows(
-  train_pData %>%
-    select(PRE_OPERATIVE_PSA, STUDY) %>%
-    mutate(Group = "Train"),
-  test_pData %>%
-    select(PRE_OPERATIVE_PSA, STUDY) %>%
-    mutate(Group = "Test")
-)
-
-# Definieren der Mapping-Tabelle von STUDY zu Cohort
-rename_map <- c(
-  "Atlanta_2014_Long" = "Cohort 1",
-  "Belfast_2018_Jain" = "Cohort 2",
-  "CamCap_2016_Ross_Adams" = "Cohort 3",
-  "CancerMap_2017_Luca" = "Cohort 4",
-  "CPC_GENE_2017_Fraser" = "Cohort 5",
-  "CPGEA_2020_Li" = "Cohort 6",
-  "DKFZ_2018_Gerhauser" = "Cohort 7",
-  "MSKCC_2010_Taylor" = "Cohort 8",
-  "Stockholm_2016_Ross_Adams" = "Cohort 9",
-  "TCGA_PRAD" = "Cohort 10",
-  "UKD2" = "Cohort 11"
-)
-
-
-
-
-# Erstellen des Boxplots mit Log-Skala für die x-Achse
 ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
   geom_boxplot(outlier.shape = NA) +  
   geom_jitter(aes(color = ColorGroup), width = 0.2, alpha = 0.5) + 
@@ -458,19 +455,23 @@ ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = ColorGroup)) +
   scale_x_log10(
     limits = c(1, 2000),  # Setzen der Grenzen (1 statt 0)
     breaks = scales::trans_breaks("log10", function(x) 10^x),
-    labels = scales::trans_format("log10", scales::math_format(10^.x))
+    labels = scales::label_number()  # Standardzahlenformat ohne Exponenten
   ) +  
   labs(
-    title = "Distribution of PSA Values by Cohort (Log Scale)",
-    x = "PSA Value (log scale)",
+    title = "Distribution of PSA Values by Cohort",
+    x = "PSA Value (Log Scale)",
     y = "Cohort"
   ) +
   theme_minimal() +
   theme(
+    plot.title = element_text(face = "bold", size = 14),  # Titel fett und Größe 14
     axis.text.y = element_text(angle = 0),
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10)
   )
+
+
+
 
 
 
@@ -534,7 +535,7 @@ exprs_num_df <- rbind(
   data.frame(`Exprs Source` = "All Genes", 
              `Exprs Count` = length(all_train_and_test_genes))
 )
-
+plot1
 # -------------------------------------------------
 # Farbenzuordnung / Mappen der Namen
 # -------------------------------------------------
@@ -644,7 +645,6 @@ exprs_num_df_cohorts$Exprs.Source <- factor(
   levels = rev(exprs_num_df_cohorts$Exprs.Source)  # Umgekehrte Reihenfolge für coord_flip()
 )
 
-# d. Erstellung des Balkendiagramms
 ggplot(exprs_num_df_cohorts, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Color_Group)) +
   geom_bar(stat = "identity", width = 0.8) +
   geom_text(aes(label = `Exprs.Count`), hjust = -0.2, size = 3) +
@@ -664,7 +664,7 @@ ggplot(exprs_num_df_cohorts, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Col
   theme(
     axis.text.y  = element_text(size = 10),
     axis.text.x  = element_text(size = 10),
-    plot.title   = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.title   = element_text(hjust = 0, size = 14, face = "bold"),  # Titel linksbündig (hjust = 0)
     legend.position = "right",  # Legende nach rechts verschieben
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10)
@@ -707,14 +707,19 @@ legend_labels_combinations <- c(
   "#0c4252" = "Intersection",
   "grey" = "All Genes"
 )
+# Reihenfolge der Levels in Color_Group anpassen
+exprs_num_df_combinations$Color_Group <- factor(
+  exprs_num_df_combinations$Color_Group, 
+  levels = c("grey", "darkred", "#0c4252")  # Neue Reihenfolge: "All Genes", "Common Genes", "Intersection"
+)
 
-# Erstellung des Balkendiagramms für "Common Genes", "Intersection" und "All Genes"
+# Aktualisierter Plot
 ggplot(exprs_num_df_combinations, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Color_Group)) +
   geom_bar(stat = "identity", width = 0.8) +
   geom_text(aes(label = `Exprs.Count`), hjust = -0.2, size = 3) +
   scale_fill_manual(
     values = c("darkred" = "darkred", "#0c4252" = "#0c4252", "grey" = "grey"),
-    labels = c("darkred" = "Common Genes", "#0c4252" = "Intersection", "grey" = "All Genes")
+    labels = c("grey" = "All Genes", "darkred" = "Common Genes", "#0c4252" = "Intersection")
   ) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
   coord_flip() +
@@ -728,14 +733,11 @@ ggplot(exprs_num_df_combinations, aes(x = Exprs.Source, y = `Exprs.Count`, fill 
   theme(
     axis.text.y  = element_text(size = 10),
     axis.text.x  = element_text(size = 10),
-    plot.title   = element_text(hjust = 0.5, size = 14, face = "bold"),
+    plot.title   = element_text(hjust = 0, size = 14, face = "bold"),  # Titel linksbündig
     legend.position = "right",  # Legende nach rechts verschieben
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10)
   )
-
-
-
 
 
 
@@ -1536,13 +1538,13 @@ missing_genes_df <- missing_genes_df %>%
 
 missing_genes_df$Fehlende_Gene <- -missing_genes_df$Fehlende_Gene
 
-library(ggplot2)
-library(dplyr)
+
 
 ggplot(missing_genes_df, aes(x = Cohort, y = Fehlende_Gene, fill = ColorGroup)) +
   geom_bar(stat = "identity") +
   scale_fill_manual(
-    values = c("Group 1" = "#ffcd66", "Group 2" = "#00706d")  # Farben zuweisen
+    values = c("Group 1" = "#ffcd66", "Group 2" = "#00706d"),  # Farben zuweisen
+    name = "Group"  # Legendentitel setzen
   ) +
   scale_y_continuous(
     limits = c(-2500, 0),  # Skala bis -2500
@@ -1557,7 +1559,7 @@ ggplot(missing_genes_df, aes(x = Cohort, y = Fehlende_Gene, fill = ColorGroup)) 
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
-    plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
+    plot.title = element_text(hjust = 0, size = 14, face = "bold")  # Titel linksbündig
   ) +
   geom_text(aes(label = Fehlende_Gene), vjust = 1.5, color = "black")  # Negative Labels
 
@@ -1621,20 +1623,21 @@ levels(result$STUDY)
 
 
 
-# Balkendiagramm erstellen
 ggplot(result, aes(x = STUDY, y = BCR_True_Proportion, fill = Group)) +
   geom_bar(stat = "identity") +
-  scale_fill_manual(values = c("#00706d", "yellow"), labels = c("Group 1", "Group 2")) +
+  scale_fill_manual(values = c("#ffcd66", "#00706d"), labels = c("Group A", "Group B")) +
   scale_y_continuous(labels = scales::percent_format()) +
   labs(
     title = "% of BCR per cohort",
     x = "Cohort",
     y = "BCR",
-    fill = "Gruppe"
+    fill = "Group"
   ) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
+  theme(
+    plot.title = element_text(face = "bold", size = 14),  # Überschrift fett und Schriftgröße 14
+    axis.text.x = element_text(angle = 45, hjust = 1)     # X-Achsen-Beschriftung rotieren
+  )
 
 
 

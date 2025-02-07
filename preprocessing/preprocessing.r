@@ -29,15 +29,15 @@ standardize <- function(z) {
 }
 
 standardize_pdata_numeric <- function(pdata, numeric_cols) {
-  # Überprüfen, ob die Spalten existieren
+  #Check whether clolumns exist
   existing_cols <- intersect(numeric_cols, names(pdata))
   if(length(existing_cols) == 0) return(pdata)
   
-  # Konvertiere zu numerisch und prüfe auf NA
+  # convert to numeric
   numeric_data <- as.matrix(sapply(pdata[, existing_cols, drop = FALSE], as.numeric))
 
   
-  # Nur standardisieren, wenn es mindestens zwei Werte gibt
+  # Only standardize for at elast two values
   for(i in 1:ncol(numeric_data)) {
     if(sum(!is.na(numeric_data[,i])) >= 2) {
       col_mean <- mean(numeric_data[,i], na.rm = TRUE)
@@ -48,7 +48,7 @@ standardize_pdata_numeric <- function(pdata, numeric_cols) {
     }
   }
   
-  # Zurück in das original dataframe
+  # Move results back to original df
   pdata[, existing_cols] <- numeric_data
   return(pdata)
 }
@@ -467,7 +467,7 @@ process_test_cohorts <- function(test_rds_file) {
   new_rownames <- rownames(test_intersect_imputed)
   rownames(test_pdata) <- new_rownames[1:nrow(test_pdata)]
   
-  #test_pdata$TISSUE <-  "Fresh_frozen"
+  test_pdata$TISSUE <-  "Fresh_frozen"
   # Save merged test data
   write.csv(test_pdata, 
             file.path(".", "data", "merged_data", "pData", "imputed", "test_pData_imputed.csv"))
@@ -534,7 +534,7 @@ process_risk_scores <- function(rds_file_path) {
               row.names = FALSE)
   }
   
-  # Create all scores vector (merge all cohorts)
+  # Create all scores vector 
   all_scores <- unlist(risk_scores)
   
   # Create train data scores (all except TCGA_PRAD and UKD2)
