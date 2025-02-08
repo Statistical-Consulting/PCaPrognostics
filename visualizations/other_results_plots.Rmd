@@ -55,7 +55,7 @@ ov_results_rsf$dataset <- ordered_datasets
 ## Filter for the best models only w.r.t exprs based trainin sets, as comparison will be with ffpe score
 
 #cBoost load and filter and find best dataset
-splits_results_cBoost <- as.data.frame(read_csv('../results_modelling_splits/splits_BBoost.csv', lazy = TRUE))
+splits_results_cBoost <- as.data.frame(read_csv('../results_modelling_splits/splits_GBoost.csv', lazy = TRUE))
 subset_splits_results_cBoost <- splits_results_cBoost %>% filter(dataset %in% c("AutoEncoder", "Intersection", "Imputed"))
 splits_best_cBoost <- subset_splits_results_cBoost %>%
   group_by(test_cohort) %>%
@@ -263,6 +263,7 @@ all_best_splits_data_all_data_sets <- all_best_splits_data_all_data_sets %>%
 ```
 
 ```{r plot the Boxplots }
+# Exprs Based Only
 plot1 <- ggplot(all_best_splits_data[,1:5], aes(x = test_cohort, y = ci)) +
   geom_boxplot(aes(fill = "Other Models"), outlier.shape = NA) + 
   geom_jitter(
@@ -276,10 +277,11 @@ plot1 <- ggplot(all_best_splits_data[,1:5], aes(x = test_cohort, y = ci)) +
     "Other Models" = "#ffcd66"
   )) +
   labs(
-    title = "Best Model per Model Class vs. ProstaTrend-ffpe - Comparison by Cohort",
+    title = "Best Expression Based Model per Model Class vs. ProstaTrend-ffpe - Comparison by Cohort",
     x = "Cohorts in Group A",
     y = "C-Index"
   ) +
+  scale_y_continuous(breaks = seq(0, 1, by = 0.05)) +  # Setzt die Y-Achse auf 0,05er-Schritte
   theme_minimal() +
   theme(
     plot.title = element_text(face = "bold", size = 12),  
@@ -289,8 +291,7 @@ plot1 <- ggplot(all_best_splits_data[,1:5], aes(x = test_cohort, y = ci)) +
     plot.background = element_rect(fill = "white", color = NA)
   )
 
-
-
+# Including pData
 plot2 <- ggplot(all_best_splits_data_all_data_sets[,1:5], aes(x = test_cohort, y = ci)) +
   geom_boxplot(aes(fill = "Other Models"), outlier.shape = NA) + 
   geom_jitter(
@@ -386,16 +387,16 @@ correlation_df <- data.frame(
   correlation = correlations
 )
 
-ggplot(correlation_df, aes(x = reorder(model, correlation), y = correlation)) +
+cor_plot <- ggplot(correlation_df, aes(x = reorder(model, correlation), y = correlation)) +
   geom_bar(stat = "identity", fill = "#00706d") +  
   geom_text(aes(label = round(correlation_df$correlation, 3)),  
             hjust = ifelse(correlation_df$correlation < 0, 1.2, -0.2),  
             color = "black", size = 4) +  
   coord_flip() +  
   labs(
-    title = "Korrelation zwischen Modellen und BCR-Percentage",
+    title = "Correlation Between the % of Censored Patients & Performance in the Cohort",
     x = "Model",
-    y = "Korrelation"
+    y = "Correlation"
   ) +
   theme_minimal() +
   theme(
@@ -576,21 +577,21 @@ survival_df_cohort1 <- survival_df_cohort1 %>%
 
 # Plot survival curves
 ggplot(survival_df_cohort1, aes(x = TimePoints)) +
-  geom_line(aes(y = Survival_DeepSurv_LowRisk,  color = "DeepSurv Low Risk"),  linewidth = 1) +
-  geom_line(aes(y = Survival_DeepSurv_HighRisk, color = "DeepSurv High Risk"), linewidth = 1) +
-  geom_line(aes(y = Survival_CoxPH_LowRisk,     color = "CoxPH Low Risk"),     linewidth = 1) +
-  geom_line(aes(y = Survival_CoxPH_HighRisk,    color = "CoxPH High Risk"),    linewidth = 1) +
+  geom_line(aes(y = Survival_DeepSurv_LowRisk,  color = "AE - DeepSurv Low Risk"),  linewidth = 1) +
+  geom_line(aes(y = Survival_DeepSurv_HighRisk, color = "AE - DeepSurv High Risk"), linewidth = 1) +
+  geom_line(aes(y = Survival_CoxPH_LowRisk,     color = "Imp. + Clin. - CoxPH Low Risk"),     linewidth = 1) +
+  geom_line(aes(y = Survival_CoxPH_HighRisk,    color = "Imp. + Clin. - CoxPH High Risk"),    linewidth = 1) +
   scale_linetype_manual(values = c(
-    "DeepSurv Low Risk"  = "solid",
-    "DeepSurv High Risk" = "dashed",
-    "CoxPH Low Risk"     = "dotdash",
-    "CoxPH High Risk"    = "dotted"
+    "AE - DeepSurv Low Risk"  = "solid",
+    "AE - DeepSurv High Risk" = "dashed",
+    "Imp. + Clin. - CoxPH Low Risk"      = "dotdash",
+    "Imp. + Clin. - CoxPH High Risk"     = "dotted"
   )) +
   scale_color_manual(values = c(
-    "DeepSurv Low Risk"  = "red", 
-    "DeepSurv High Risk" = "#ffcd66", 
-    "CoxPH Low Risk"     = "darkblue", 
-    "CoxPH High Risk"    = "blue"
+    "AE - DeepSurv Low Risk"  = "grey", 
+    "AE - DeepSurv High Risk" = "green", 
+    "Imp. + Clin. - CoxPH Low Risk"     = "darkblue", 
+    "Imp. + Clin. - CoxPH High Risk"    = "blue"
   )) +
   labs(
     title = "Cohort 10 Survival Curves for Risk Groups and Models",
@@ -603,8 +604,10 @@ ggplot(survival_df_cohort1, aes(x = TimePoints)) +
     plot.title   = element_text(face = "bold", size = 12),
     legend.title = element_text(size = 12),
     legend.text  = element_text(size = 10),
-    legend.position = "right"
+    legend.position = "bottom"  
   ) +
+  
+  guides(color = guide_legend(nrow = 2, title.position = "top")) +  
   scale_x_continuous(limits = c(0, 160))
 
 ```

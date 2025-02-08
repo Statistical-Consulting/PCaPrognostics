@@ -507,7 +507,7 @@ cohort_levels <- c(
   "Cohort 11", "Cohort 11 (Inters.)"
 )
 plot_data$Cohort <- factor(plot_data$Cohort, levels = cohort_levels)
-
+plot_data$ProportionBCR1 <- 1- plot_data$ProportionBCR1
 # Plot with consistent style
 ggplot(plot_data, aes(x = Cohort, y = ProportionBCR1, fill = Group)) +
   geom_col() +
@@ -516,9 +516,9 @@ ggplot(plot_data, aes(x = Cohort, y = ProportionBCR1, fill = Group)) +
   scale_y_continuous(labels = scales::percent_format(), expand = expansion(mult = c(0, 0.1))) +
   scale_fill_manual(values = c("Group 1" = "#ffcd66", "Group 2" = "#00706d")) + 
   labs(
-    title = "% of BCR per Cohort", 
+    title = "% of Censored Patients per Cohort", 
     x = "Cohorts", 
-    y = "BCR" 
+    y = "% Censored"
   ) +
   theme_minimal() + 
   theme(
@@ -718,7 +718,7 @@ p1 <- ggsurvplot(
   conf.int = TRUE,
   censor = FALSE,  
   xlab = "Months to BCR",
-  ylab = "Survival Probability",
+  ylab = "Observed % being BCR free",
   title = "Kaplan-Meier Curve: Aggregated Cohorts 1-9 vs. Cohort 10",
   legend.title = "Cohort",
   legend.labs = c("Aggregated Cohorts 1-9", "Cohort 10")
@@ -745,7 +745,7 @@ p2 <- ggsurvplot(
   conf.int = FALSE,
   censor = FALSE,  
   xlab = "Months to BCR",
-  ylab = "Survival Probability",
+  ylab = "Observed % being BCR free",
   title = "Kaplan-Meier Curves: All 10 Cohorts Individually",
   legend.title = "Cohorts",
   legend.labs = unique(km_data_2$STUDY)
@@ -771,8 +771,8 @@ p3 <- ggsurvplot(
   pval = TRUE,
   conf.int = TRUE,
   censor = FALSE,  
-  xlab = "Months to BCR",
-  ylab = "Survival Probability",
+  xlab = "Months to DOD",
+  ylab = "Observed Survival Rate",
   title = "Kaplan-Meier Curve: Cohort 11",
   legend.title = "Cohort",
   legend.labs = "Cohort 11" 
