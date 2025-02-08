@@ -1,0 +1,84 @@
+---
+title: "extract_rel_data"
+author: "JonasSchernich"
+date: "2025-01-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r load packages}
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(Biobase)
+```
+```{r load data, include=FALSE}
+load_cohorts <- function(rds_file_paths) {
+  all_cohorts <- list()
+  for (rds_file_path in rds_file_paths) {
+    cohorts <- readRDS(file.path("..", "data", rds_file_path))
+    cohorts_list <- lapply(cohorts, function(eset) {
+      list(
+        pData = as.data.frame(pData(eset)),
+        fData = as.data.frame(fData(eset)),
+        exprs = as.data.frame(exprs(eset))
+      )
+    })
+    all_cohorts <- c(all_cohorts, cohorts_list)
+  }
+  return(all_cohorts)
+}
+
+cohorts_a <- load_cohorts("PCa_cohorts.Rds")
+cohorts_b <- load_cohorts( "PCa_cohorts_2.Rds")
+c1 <- rownames(exprs(cohorts_a$Atlanta_2014_Long))
+c2 <- rownames(exprs(cohorts_a$Belfast_2018_Jain))
+c3 <- rownames(exprs(cohorts_a$CamCap_2016_Ross_Adams))
+c4 <- rownames(exprs(cohorts_a$CancerMap_2017_Luca))
+c5 <- rownames(exprs(cohorts_a$CPC_GENE_2017_Fraser))
+c6 <- rownames(exprs(cohorts_a$CPGEA_2020_Li))
+c7 <- rownames(exprs(cohorts_a$DKFZ_2018_Gerhauser))
+c8 <- rownames(exprs(cohorts_a$MSKCC_2010_Taylor))
+c9 <- rownames(exprs(cohorts_a$Stockholm_2016_Ross_Adams))
+c10 <- rownames(exprs(cohorts_b$TCGA_PRAD))
+c11 <- rownames(exprs(cohorts_b$UKD2))
+
+u <- unique(c(c1, c2, c3, c4, c5, c6, c7, c8, c9, c11, c10))
+length(u)
+```
+```{r load data, include=FALSE}
+common_cols <- c(
+"SAMPLE_ID", "GSM_SAMPLE_ID", "SRR_SAMPLE_ID", "PAPER_SAMPLE_ID", "SAMPLE_COUNT",
+"AGE", "STUDY", "PLATFORM", "TISSUE", "SAMPLE_CLASS", "SAMPLE_TYPE", "SURGICAL_PROCEDURE",
+"CLIN_TNM_STAGE", "CLIN_T_STAGE", "CLIN_T_STAGE_GROUP", "CLIN_N_STAGE", "CLIN_M_STAGE",
+"PATH_TNM_STAGE", "PATH_T_STAGE", "PATH_T_STAGE_GROUP", "PATH_N_STAGE", "PATH_M_STAGE",
+"GLEASON_SCORE", "GLEASON_SCORE_1", "GLEASON_SCORE_2",
+"PRE_OPERATIVE_PSA", "MONTH_TO_BCR","BCR_STATUS", "MONTH_TO_LAST_FOLLOW_UP", "OS_STATUS",
+"MONTH_TO_DOD", "DOD_STATUS", "MONTH_TO_CEP", "CEP_STATUS"
+)
+a_pData <- cohorts_a[[1]]$pData[common_cols]
+for(i in 2:9){
+  a_pData <- rbind(a_pData, cohorts_a[[i]]$pData[common_cols])
+}
+all_pData_common_cols <- a_pData
+for(i in 1:2){
+  all_pData_common_cols <- rbind(all_pData_common_cols, pData(cohorts_b[[i]])[common_cols])
+}
+
+```
+```{r load data, include=FALSE}
+median_observation_time_no_event <- median(na.omit(all_pData_common_cols[all_pData_common_cols$BCR_STATUS == 0,c("MONTH_TO_BCR")]))
+numb_peculiar_follow_up_times <- sum(na.omit(all_pData_common_cols[all_pData_common_cols$BCR_STATUS==0, c("MONTH_TO_BCR")]==all_pData_common_cols[all_pData_common_cols$BCR_STATUS==0, c("MONTH_TO_LAST_FOLLOW_UP")])==FALSE)
+
+```
+```{r load data, include=FALSE}
+avrg_month_to_bcr <- c(cohorts_b[[1]]$pData$MONTH_TO_BCR)
+for (i in 1:9){
+  avrg_month_to_bcr <- c(avrg_month_to_bcr, cohorts_a[[i]]$pData$MONTH_TO_BCR)
+}
+avrg_month_to_bcr <- mean(avrg_month_to_bcr)
+avrg_month_to_dod <- mean(cohorts_b[[2]]$pData$MONTH_TO_DOD)
+```
