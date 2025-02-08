@@ -470,14 +470,32 @@ combined_results <- bind_rows(
 # 6) Plot
 model_colors <- c(
   "CoxPH" = "black",
-  "Priority Lasso" = "black",
-  "Cox PASNet" = "black",
-  "GBoost" = "grey",  
+  "Priority Lasso" = "darkgrey",
+  "Cox PASNet" = "lightgrey",
+  "GBoost" = "red",  
   "DeepSurv" = "blue",  
   "RSF" = "green",  
   "Cox-PASNet" = "purple"
 )
 
+new_order <- c(
+  "AutoEncoder",
+  "pData_AutoEncoder",
+  "Imputed",
+  "pData_Imputed",
+  "Intersection",
+  "pData_Intersection",
+  "pData",  
+  "Block Data",
+  "pData + Block Data",
+  "Pathway Data"
+)
+
+# Reihenfolge explizit setzen
+combined_results <- combined_results %>%
+  mutate(dataset = factor(dataset, levels = new_order))
+
+# Erstelle den Plot mit der neuen Reihenfolge
 plot1 <- ggplot(
   data = combined_results %>%
     filter(!is.na(ci_coh1)) %>%
@@ -488,19 +506,19 @@ plot1 <- ggplot(
   scale_y_continuous(limits = c(0.6, 0.8), breaks = c(0.6, 0.7, 0.8)) +
   scale_x_discrete(
     labels = c(
-      "Block Data"          = "Block Data",
       "AutoEncoder"       = "Autoencoder",
-      "pData + Block Data" = "Block Data + Clin. Data",
       "pData_AutoEncoder" = "Autoencoder + Clin. Data",
       "Imputed"            = "Common",
       "pData_Imputed"      = "Common + Clin. Data",
       "Intersection"         = "Intersect.",
       "pData_Intersection"   = "Intersect. + Clin. Data",
-      "Pathway Data"          = "Pathway Data + Clin. Data",
-      "pData"             = "Clin. Data"
+      "pData"             = "Clin. Data",
+      "Block Data"          = "Block Data",
+      "pData + Block Data" = "Block + Clin. Data",
+      "Pathway Data"          = "Pathway + Clin. Data"
     )
   ) +
-  scale_color_manual(values = model_colors) +  # Apply manual color scale
+  scale_color_manual(values = model_colors) +  
   labs(
     title = "Performance of Models on Cohort 10 by Data Set",
     x = "Data Sets", y = "C-Index", color = "Model"
