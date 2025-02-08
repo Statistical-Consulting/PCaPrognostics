@@ -285,7 +285,7 @@ ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = Group)) +
   ) +
   scale_x_log10() +  
   labs(
-    title = "Distribution of PSA Values by Cohort",
+    title = "Distribution of Preoperative PSA Values by Cohort",
     x = "PSA Value (Log Scale)",
     y = "Cohort"
   ) +
@@ -524,7 +524,7 @@ ggplot(plot_data, aes(x = Cohort, y = ProportionBCR1, fill = Group)) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1, size = 10), 
     axis.text.y = element_text(size = 10), 
-    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"), 
+    plot.title = element_text(hjust = 0, size = 12, face = "bold"), 
     legend.title = element_blank(), 
     legend.position = "top" 
   )
@@ -672,7 +672,9 @@ ggplot(cor_df, aes(x = correlation, y = count)) +
   labs(title = "Distribution of Expression Correlation (Log-Scale)",
        x = "Correlation (Pearson)",
        y = "Number of Pairs") +
-  theme_minimal()
+  theme_minimal()+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(hjust = 0, size = 12, face = "bold"))
 
 ```
 ```{r kaplan meier curves}
@@ -736,7 +738,18 @@ surv_obj_2 <- Surv(time = km_data_2$MONTH_TO_BCR, event = km_data_2$BCR_STATUS)
 
 # fit modell 
 fit_2 <- survfit(surv_obj_2 ~ STUDY, data = km_data_2)
-
+colors_10 <- c(
+  "Cohort 1" = "#E41A1C", 
+  "Cohort 2" = "#377EB8",  
+  "Cohort 3" = "#4DAF4A",  
+  "Cohort 4" = "#984EA3", 
+  "Cohort 5" = "#FF7F00", 
+  "Cohort 6" = "#FFFF33", 
+  "Cohort 7" = "#A65628",  
+  "Cohort 8" = "#F781BF",  
+  "Cohort 9" = "#999999", 
+  "Cohort 10" = "#66C2A5"  
+)
 p2 <- ggsurvplot(
   fit_2,
   data = km_data_2,
@@ -753,9 +766,6 @@ p2 <- ggsurvplot(
 
 # manually set colors
 p2<- ggpar(p2, palette = colors_10)
-
-# Plot 
-print(p)
 
 # ---- Plot 3: Only Ribolution_ukd2 ----
 km_data_3 <- kaplan_meier_pData %>%
@@ -797,6 +807,6 @@ ggsurvtable(
   ylab = "Cohorts",
   title = "Risk Table for the First 10 Cohorts"
 )
-
+p3
 
 ```
