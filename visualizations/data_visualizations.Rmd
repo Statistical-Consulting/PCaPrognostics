@@ -1,0 +1,802 @@
+---
+title: "data_visualizations"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r load packages}
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(tidyr)
+library(Biobase)
+library(forcats)
+library(scales) 
+library(pheatmap)
+library(corrplot)
+# Load necessary packages
+library(survival)
+library(survminer)
+
+```
+
+```{r load data}
+train_studies <- c(
+  "Atlanta_2014_Long", "Belfast_2018_Jain", "CamCap_2016_Ross_Adams",
+  "CancerMap_2017_Luca", "CPC_GENE_2017_Fraser", "CPGEA_2020_Li",
+  "DKFZ_2018_Gerhauser", "MSKCC_2010_Taylor", "Stockholm_2016_Ross_Adams"
+)
+test_studies <- c("Ribolution_prad", "Ribolution_ukd2")
+
+all_studies <- c(train_studies, test_studies)
+
+load_cohorts <- function(rds_file_paths) {
+  all_cohorts <- list()
+  for (rds_file_path in rds_file_paths) {
+    cohorts <- readRDS(file.path("..", "data", rds_file_path))
+    cohorts_list <- lapply(cohorts, function(eset) {
+      list(
+        pData = as.data.frame(pData(eset)),
+        fData = as.data.frame(fData(eset)),
+        exprs = as.data.frame(exprs(eset))
+      )
+    })
+    all_cohorts <- c(all_cohorts, cohorts_list)
+  }
+  return(all_cohorts)
+}
+
+train_cohorts <- load_cohorts("PCa_cohorts.Rds")
+test_cohorts <- load_cohorts( "PCa_cohorts_2.Rds")
+
+
+train_exprs_merged_imputed <- as.data.frame(read_csv('../data/merged_data/exprs/common_genes/common_genes_knn_imputed.csv', lazy = TRUE))
+train_exprs_merged_intersect<- as.data.frame(read_csv('../data/merged_data/exprs/intersection/exprs_intersect.csv', lazy = TRUE))
+train_exprs_merged_all_genes<- as.data.frame(read_csv('../data/merged_data/exprs/all_genes/all_genes.csv', lazy = TRUE))
+
+
+```
+```{r preprocess for the plotting}
+# fix data time 
+train_cohorts$Stockholm_2016_Ross_Adams$pData$AGE <- 
+  ifelse(train_cohorts$Stockholm_2016_Ross_Adams$pData$AGE == "unknown", 
+         NA, 
+         train_cohorts$Stockholm_2016_Ross_Adams$pData$AGE)
+
+# merge data frames with relevatn columns
+train_pData <- data.frame()
+test_pData <- data.frame()
+for (i in 1:length(train_cohorts)) { 
+  train_pData <- rbind(train_pData, train_cohorts[[i]]$pData[,c("AGE", "STUDY", "TISSUE", "GLEASON_SCORE", "PRE_OPERATIVE_PSA", "BCR_STATUS", "MONTH_TO_BCR", "DOD_STATUS", "MONTH_TO_DOD")])
+}
+for (i in 1:length(test_cohorts)) { 
+  test_pData <- rbind(test_pData, test_cohorts[[i]]$pData[,c("AGE", "STUDY", "TISSUE", "GLEASON_SCORE", "PRE_OPERATIVE_PSA", "BCR_STATUS", "MONTH_TO_BCR", "DOD_STATUS", "MONTH_TO_DOD")])
+}
+test_pData$TISSUE[test_pData$TISSUE == "fresh-frozen"] <- "Fresh_frozen"
+test_pData$PRE_OPERATIVE_PSA <- as.numeric(test_pData$PRE_OPERATIVE_PSA)
+train_pData$PRE_OPERATIVE_PSA <- as.numeric(train_pData$PRE_OPERATIVE_PSA)
+all_pData <- rbind(train_pData, test_pData)
+
+# Define cohort groups
+group_a_cohorts <- c(
+  "Atlanta_2014_Long", "Belfast_2018_Jain", "CamCap_2016_Ross_Adams",
+  "CancerMap_2017_Luca", "CPC_GENE_2017_Fraser", "CPGEA_2020_Li",
+  "DKFZ_2018_Gerhauser", "MSKCC_2010_Taylor", "Stockholm_2016_Ross_Adams"
+)
+
+group_b_cohorts <- c(
+  "Ribolution_prad", "Ribolution_ukd2"
+)
+
+# Add Group Column
+all_pData$Group <- ifelse(all_pData$STUDY %in% group_a_cohorts, "A", 
+                          ifelse(all_pData$STUDY %in% group_b_cohorts, "B", NA))
+
+rename_map <- c(
+  "Atlanta_2014_Long" = "Cohort 1",
+  "Belfast_2018_Jain" = "Cohort 2",
+  "CamCap_2016_Ross_Adams" = "Cohort 3",
+  "CancerMap_2017_Luca" = "Cohort 4",
+  "CPC_GENE_2017_Fraser" = "Cohort 5",
+  "CPGEA_2020_Li" = "Cohort 6",
+  "DKFZ_2018_Gerhauser" = "Cohort 7",
+  "MSKCC_2010_Taylor" = "Cohort 8",
+  "Stockholm_2016_Ross_Adams" = "Cohort 9",
+  "Ribolution_prad" = "Cohort 10",
+  "Ribolution_ukd2" = "Cohort 11"
+)
+
+
+```
+
+```{r tissue stack bar plot}
+# Prepare data for the plot
+train_tissue_counts <- table(train_pData$TISSUE)
+test_tissue_counts <- table(test_pData$TISSUE)
+
+all_tissue_types <- union(names(train_tissue_counts), names(test_tissue_counts))
+train_tissue_counts <- train_tissue_counts[all_tissue_types]
+test_tissue_counts <- test_tissue_counts[all_tissue_types]
+stacked_counts <- rbind(train_tissue_counts, test_tissue_counts)
+rownames(stacked_counts) <- c("Group A", "Group B")
+tissue_df <- as.data.frame(t(stacked_counts))
+tissue_df$Tissue_Type <- rownames(tissue_df)
+tissue_df_long <- pivot_longer(tissue_df, -Tissue_Type, names_to = "Group", values_to = "Count")
+
+#plot 
+ggplot(tissue_df_long, aes(x = Tissue_Type, y = Count, fill = Group)) +
+  geom_bar(stat = "identity", position = position_stack(reverse = TRUE)) +
+  scale_fill_manual(values = c("Group A" = "#ffcd66", "Group B" = "#00706d")) +
+  labs(
+    title = "Number of patients by tissue type",
+    x = "Tissue Type",
+    y = "Number of patients",
+    fill = "Group"
+  ) +
+  scale_x_discrete(labels = c("FFPE" = "FFPE", "Fresh_frozen" = "Fresh-Frozen", "Snap_frozen" = "Snap-Frozen")) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0, size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+
+
+
+```
+
+```{r age box plot}
+
+
+# Ensure AGE is numeric and add COHORT_TYPE
+train_pData_AGE <- train_pData %>%
+  mutate(
+    AGE = as.numeric(AGE),
+    COHORT_TYPE = "Group 1"
+  )
+
+test_pData_AGE <- test_pData %>%
+  mutate(
+    AGE = as.numeric(AGE),
+    COHORT_TYPE = "Group 2"
+  )
+
+# Combine train and test data
+all_pData_AGE <- bind_rows(
+  train_pData_AGE[, c("AGE", "STUDY", "COHORT_TYPE")],
+  test_pData_AGE[, c("AGE", "STUDY", "COHORT_TYPE")]
+)
+
+# Process combined data
+all_pData_AGE <- all_pData_AGE %>%
+  mutate(STUDY = rename_map[STUDY]) %>%
+  mutate(STUDY = factor(STUDY, levels = rename_map)) %>%
+  complete(
+    STUDY = factor(rename_map, levels = rename_map),
+    fill = list(AGE = NA, COHORT_TYPE = "NA")
+  ) %>%
+  mutate(COHORT_TYPE = factor(COHORT_TYPE, levels = c("Group 1", "Group 2", "NA")))
+
+# Boxplot
+ggplot(all_pData_AGE, aes(x = STUDY, y = AGE, fill = COHORT_TYPE)) +
+  geom_boxplot(outlier.shape = NA, na.rm = TRUE) +
+  scale_fill_manual(
+    values = c("Group 1" = "#ffcd66", "Group 2" = "#00706d", "NA" = "white"),
+    na.value = "white"
+  ) +
+  theme_minimal() +
+  labs(
+    title = "Age Distribution by Cohort",
+    x = "Cohort",
+    y = "Age",
+    fill = "Group",
+    color = "Group"
+  ) +
+  theme(
+    plot.title = element_text(hjust = 0, size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10, angle = 45, hjust = 1),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+
+```
+
+
+```{r gleason score bar plot}
+# create gleason score df
+train_scores <- na.omit(train_pData$GLEASON_SCORE)
+test_scores  <- na.omit(test_pData$GLEASON_SCORE)
+
+gleason_df <- data.frame(
+  Score = c(train_scores, test_scores),
+  Group = c(rep("Group A", length(train_scores)),  # "Train" zu "Group A" geändert
+            rep("Group B", length(test_scores)))    # "Test" zu "Group B" geändert
+)
+
+# clac relative score amounts
+gleason_percent <- gleason_df %>%
+  group_by(Group, Score) %>%
+  summarise(Count = n(), .groups = 'drop') %>%
+  group_by(Group) %>%
+  mutate(Percentage = (Count / sum(Count)) * 100) %>%
+  ungroup()
+
+# plot
+ggplot(gleason_percent, aes(x = as.factor(Score), y = Percentage, fill = Group)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  scale_fill_manual(
+    values = c("Group A" = "#ffcd66", "Group B" = "#00706d")
+  ) +
+  labs(
+    title = "Gleason Score Distribution by Group in %",
+    x = "Gleason Score",
+    y = "%",
+    fill = "Group"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0, size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10, angle = 0, hjust = 0.5),
+    axis.text.y = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  ) +
+  geom_text(
+    aes(label = sprintf("%.1f%%", Percentage)),
+    position = position_dodge(width = 0.8),
+    vjust = -0.5,
+    size = 3,
+    color = "black"
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
+
+```
+
+
+
+
+```{r tissue stack bar plot}
+# prepare psa data frame
+psa_data <- all_pData %>%
+  mutate(
+    Cohort = recode(STUDY, !!!rename_map),  
+    Cohort = factor(Cohort, levels = paste0("Cohort ", 1:11))  
+  ) %>%
+  mutate(
+    Cohort = fct_rev(Cohort)
+  )
+
+# Define colors for groups
+fill_colors <- c("A" = "#ffcd66", "B" = "#00706d")
+
+# Create the plot
+ggplot(psa_data, aes(y = Cohort, x = PRE_OPERATIVE_PSA, fill = Group)) +
+  geom_boxplot(outlier.shape = 21, outlier.size = 2, outlier.color = "black") +  
+  scale_fill_manual(
+    values = fill_colors,
+    name = "Group"
+  ) +
+  scale_x_log10() +  
+  labs(
+    title = "Distribution of PSA Values by Cohort",
+    x = "PSA Value (Log Scale)",
+    y = "Cohort"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0, size = 12, face = "bold"),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+
+
+
+```
+
+
+
+
+### Expression Data
+```{r prepare exprs data for plotting}
+
+# Create data frame with number of genes per cohort
+exprs_num_df <- data.frame(
+  `Exprs Source` = character(), 
+  `Exprs Count` = numeric()     
+)
+
+for (i in 1:length(train_cohorts)) {
+  study_name <- train_cohorts[[i]]$pData$STUDY[1]  
+  gene_count <- nrow(train_cohorts[[i]]$exprs)     
+  
+  if (!study_name %in% exprs_num_df$`Exprs Source`) {
+    exprs_num_df <- rbind(
+      exprs_num_df,
+      data.frame(
+        `Exprs Source` = study_name,
+        `Exprs Count` = gene_count
+      )
+    )
+  }
+}
+
+exprs_num_df <- rbind(
+  exprs_num_df,
+  data.frame(`Exprs Source` = "TCGA_PRAD_genes", 
+             `Exprs Count` = nrow(test_cohorts$TCGA_PRAD$exprs)),
+  data.frame(`Exprs Source` = "UKD2", 
+             `Exprs Count` = nrow(test_cohorts$UKD2$exprs))
+)
+
+# Umbenennen der Cohorts
+exprs_num_df <- exprs_num_df %>%
+  mutate(
+    Exprs.Source = case_when(
+      Exprs.Source == "Atlanta_2014_Long"          ~ "Cohort 1",
+      Exprs.Source == "Belfast_2018_Jain"          ~ "Cohort 2",
+      Exprs.Source == "CamCap_2016_Ross_Adams"     ~ "Cohort 3",
+      Exprs.Source == "CancerMap_2017_Luca"        ~ "Cohort 4",
+      Exprs.Source == "CPC_GENE_2017_Fraser"       ~ "Cohort 5",
+      Exprs.Source == "CPGEA_2020_Li"              ~ "Cohort 6",
+      Exprs.Source == "DKFZ_2018_Gerhauser"        ~ "Cohort 7",
+      Exprs.Source == "MSKCC_2010_Taylor"          ~ "Cohort 8",
+      Exprs.Source == "Stockholm_2016_Ross_Adams"  ~ "Cohort 9",
+      Exprs.Source == "TCGA_PRAD_genes"            ~ "Cohort 10",
+      Exprs.Source == "UKD2"                       ~ "Cohort 11",
+      TRUE ~ as.character(Exprs.Source)
+    )
+  )
+
+# prepare cohort plot
+exprs_num_df_cohorts <- exprs_num_df %>%
+  filter(Exprs.Source %in% paste0("Cohort ", 1:11)) %>%
+  mutate(Color_Group = case_when(
+    Exprs.Source %in% c("Cohort 10", "Cohort 11") ~ "Group B",
+    TRUE ~ "Group A"
+  )) %>%
+  arrange(desc(`Exprs.Count`))  # Zuerst nach Count sortieren
+
+# Wichtige Änderung hier: Group B Cohorts ans Ende verschieben
+exprs_num_df_cohorts <- exprs_num_df_cohorts %>%
+  filter(Color_Group == "Group A") %>%  # Nur Group A behalten
+  bind_rows(                           # Group B am Ende anfügen
+    exprs_num_df_cohorts %>% 
+      filter(Color_Group == "Group B") %>%
+      arrange(desc(`Exprs.Count`))
+  )
+
+# refactor für die richtige Reihenfolge im Plot
+exprs_num_df_cohorts$Exprs.Source <- factor(
+  exprs_num_df_cohorts$Exprs.Source, 
+  levels = rev(exprs_num_df_cohorts$Exprs.Source)
+)
+all_test_genes <- c(rownames(test_cohorts$TCGA_PRAD$exprs), rownames(test_cohorts$UKD2$exprs))
+all_train_and_test_genes <- all_test_genes
+for (i in 1:9){
+  all_train_and_test_genes <- append(all_train_and_test_genes, rownames(train_cohorts[[i]]$exprs))
+}
+all_train_and_test_genes <- unique(all_train_and_test_genes)
+all_test_genes <- unique(all_test_genes)
+exprs_num_df <- rbind(
+  exprs_num_df,
+    data.frame(`Exprs Source` = "All Training Genes", 
+             `Exprs Count` = ncol(train_exprs_merged_all_genes[-1])),
+  data.frame(`Exprs Source` = "Common Genes", 
+             `Exprs Count` = ncol(train_exprs_merged_imputed[-1])),
+  data.frame(`Exprs Source` = "Intersection", 
+             `Exprs Count` = ncol(train_exprs_merged_intersect[-1])),
+  data.frame(`Exprs Source` = "All Test Genes", 
+             `Exprs Count` = length(all_test_genes)),
+  data.frame(`Exprs Source` = "All Genes", 
+             `Exprs Count` = length(all_train_and_test_genes))
+)
+
+## for combinations
+exprs_num_df_combinations <- exprs_num_df %>%
+  filter(Exprs.Source %in% c("Common Genes", "Intersection", "All Genes")) %>%
+  mutate(
+    Color_Group = case_when(
+      Exprs.Source == "Common Genes"  ~ "darkred",
+      Exprs.Source == "Intersection"  ~ "#0c4252",
+      Exprs.Source == "All Genes"     ~ "grey"
+    )
+  )
+
+# reorder
+exprs_num_df_combinations <- rbind(exprs_num_df_combinations, exprs_num_df_combinations[1:2,])[-c(1, 2),]
+
+# refactor
+exprs_num_df_combinations$Exprs.Source <- factor(
+  exprs_num_df_combinations$Exprs.Source, 
+  levels = rev(exprs_num_df_combinations$Exprs.Source)
+)
+
+```
+
+```{r create plot}
+# Plot
+ggplot(exprs_num_df_cohorts, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Color_Group)) +
+  geom_bar(stat = "identity", width = 0.8) +
+  geom_text(aes(label = `Exprs.Count`), hjust = -0.2, size = 3) +
+  scale_fill_manual(
+    values = c("Group A" = "#ffcd66", "Group B" = "#00706d")
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  coord_flip() +
+  labs(
+    title = "Number of Genes by Cohorts",
+    x = "Cohort",
+    y = "Gene Count",
+    fill = "Group"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y  = element_text(size = 10),
+    axis.text.x  = element_text(size = 10),
+    plot.title   = element_text(hjust = 0, size = 12, face = "bold"),
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+
+# Plot
+ggplot(exprs_num_df_combinations, aes(x = Exprs.Source, y = `Exprs.Count`, fill = Color_Group)) +
+  geom_bar(stat = "identity", width = 0.8) +
+  geom_text(aes(label = `Exprs.Count`), hjust = -0.2, size = 3) +
+  scale_fill_manual(
+    values = c("darkred" = "darkred", "#0c4252" = "#0c4252", "grey" = "grey"),
+    labels = c("grey" = "All Genes", "darkred" = "Common Genes", "#0c4252" = "Intersection")
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +
+  coord_flip() +
+  labs(
+    title = "Number of Genes by Combination Type",
+    x = "",
+    y = "Gene Count",
+    fill = "Combination Types"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.y  = element_text(size = 10),
+    axis.text.x  = element_text(size = 10),
+    plot.title   = element_text(hjust = 0, size = 12, face = "bold"),
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10)
+  )
+```
+```{r prepare month to bcr data}
+# Replace missing BCR values in cohort 11
+test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$MONTH_TO_BCR <- 
+  test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$MONTH_TO_DOD / 100
+
+test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$BCR_STATUS <- 
+  test_pData[test_pData$STUDY == "Ribolution_ukd2", ]$DOD_STATUS
+
+# Create BCR Data subset with grouping
+all_pData_bcr <- rbind(
+  train_pData[, c("MONTH_TO_BCR", "STUDY", "BCR_STATUS")] %>%
+    mutate(Group = "Group 1"),
+  test_pData[, c("MONTH_TO_BCR", "STUDY", "BCR_STATUS")] %>%
+    mutate(Group = "Group 2")
+)
+
+# Map cohort names using rename_map and filter rows with valid mapping
+all_pData_bcr$Cohort <- rename_map[all_pData_bcr$STUDY]
+all_pData_bcr <- all_pData_bcr[!is.na(all_pData_bcr$Cohort), ]
+
+# Calculate the proportion of BCR_STATUS = 1 per cohort
+plot_data <- all_pData_bcr %>%
+  group_by(Cohort, Group) %>%
+  summarise(ProportionBCR1 = mean(BCR_STATUS == 1, na.rm = TRUE), .groups = "drop")
+
+# Define cohort levels for consistent plotting order
+cohort_levels <- c(
+  "Cohort 1", "Cohort 2", "Cohort 3", "Cohort 4", "Cohort 5",
+  "Cohort 6", "Cohort 7", "Cohort 8", "Cohort 9",
+  "Cohort 10", "Cohort 10 (Inters.)",
+  "Cohort 11", "Cohort 11 (Inters.)"
+)
+plot_data$Cohort <- factor(plot_data$Cohort, levels = cohort_levels)
+
+# Plot with consistent style
+ggplot(plot_data, aes(x = Cohort, y = ProportionBCR1, fill = Group)) +
+  geom_col() +
+  geom_text(aes(label = scales::percent(ProportionBCR1, accuracy = 1)), 
+            vjust = -0.5, size = 3) + 
+  scale_y_continuous(labels = scales::percent_format(), expand = expansion(mult = c(0, 0.1))) +
+  scale_fill_manual(values = c("Group 1" = "#ffcd66", "Group 2" = "#00706d")) + 
+  labs(
+    title = "% of BCR per Cohort", 
+    x = "Cohorts", 
+    y = "BCR" 
+  ) +
+  theme_minimal() + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10), 
+    axis.text.y = element_text(size = 10), 
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"), 
+    legend.title = element_blank(), 
+    legend.position = "top" 
+  )
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+```{r prepare missing cohorts data}
+
+# select relevant genes for comparison
+common_genes   <- colnames(train_exprs_merged_imputed)[-1]
+intersect_genes <- colnames(train_exprs_merged_intersect)[-1]
+
+#create missing genes df
+missing_genes_df <- data.frame(
+  Kohorte = character(), 
+  Fehlende_Gene = numeric(), 
+  stringsAsFactors = FALSE
+)
+
+
+for (cohort_name in names(train_cohorts)) {
+  fehlende <- length(setdiff(common_genes, rownames(train_cohorts[[cohort_name]]$exprs)))
+  missing_genes_df <- rbind(
+    missing_genes_df, 
+    data.frame(Kohorte = cohort_name, Fehlende_Gene = fehlende)
+  )
+}
+
+
+for (cohort_name in names(test_cohorts)) {
+  fehlende <- length(setdiff(common_genes, rownames(test_cohorts[[cohort_name]]$exprs)))
+  missing_genes_df <- rbind(
+    missing_genes_df, 
+    data.frame(Kohorte = cohort_name, Fehlende_Gene = fehlende)
+  )
+}
+
+# add group b missing genes w.r.t. intersection
+missing_genes_df <- rbind(
+  missing_genes_df,
+  data.frame(Kohorte = "TCGA_PRAD",  Fehlende_Gene = length(setdiff(intersect_genes, rownames(test_cohorts[["TCGA_PRAD"]]$exprs)))),
+  data.frame(Kohorte = "UKD2", Fehlende_Gene = length(setdiff(intersect_genes, rownames(test_cohorts[["UKD2"]]$exprs))))
+)
+missing_genes_df$Kohorte[12:13] <- c("TCGA_PRAD_inters.", "UKD2_inters." )
+
+# Adapt Cohort names
+rename_map_missing_genes <- c(
+  "Atlanta_2014_Long"         = "Cohort 1",
+  "Belfast_2018_Jain"         = "Cohort 2",
+  "CamCap_2016_Ross_Adams"    = "Cohort 3",
+  "CancerMap_2017_Luca"       = "Cohort 4",
+  "CPC_GENE_2017_Fraser"      = "Cohort 5",
+  "CPGEA_2020_Li"             = "Cohort 6",
+  "DKFZ_2018_Gerhauser"       = "Cohort 7",
+  "MSKCC_2010_Taylor"         = "Cohort 8",
+  "Stockholm_2016_Ross_Adams" = "Cohort 9",
+  "TCGA_PRAD"                 = "Cohort 10",
+  "UKD2"                      = "Cohort 11",
+  "TCGA_PRAD_inters."    = "Cohort 10 (Inters.)",
+  "UKD2_inters."    = "Cohort 11 (Inters.)"
+)
+
+missing_genes_df$Cohort <- rename_map_missing_genes[missing_genes_df$Kohorte]
+
+
+# set order for plotting
+cohort_order <- c(
+  "Cohort 1", "Cohort 2", "Cohort 3", "Cohort 4", "Cohort 5", 
+  "Cohort 6", "Cohort 7", "Cohort 8", "Cohort 9",
+  "Cohort 10", "Cohort 10 (Inters.)",
+  "Cohort 11", "Cohort 11 (Inters.)"
+)
+missing_genes_df$Cohort <- factor(missing_genes_df$Cohort, levels = cohort_order)
+
+# Add color scheme
+missing_genes_df <- missing_genes_df %>%
+  mutate(
+    ColorGroup = ifelse(
+      Cohort %in% c("Cohort 10", "Cohort 11", "Cohort 10 (Inters.)", "Cohort 11 (Inters.)"),
+      "Group 2",  
+      "Group 1"
+    ),
+    Fehlende_Gene = -Fehlende_Gene
+  )
+
+```
+
+```{r plot}
+# 7) Plot
+ggplot(missing_genes_df, aes(x = Cohort, y = Fehlende_Gene, fill = ColorGroup)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Group 1" = "#ffcd66", "Group 2" = "#00706d"), name = "Group") +
+  scale_y_continuous(
+    limits = c(-2500, 0),
+    breaks = seq(-2500, 0, 500),
+    labels = seq(-2500, 0, 500)
+  ) +
+  labs(title = "Genes to Impute by Cohort", x = "Cohorts", y = "Number of Missing Genes") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(hjust = 0, size = 12, face = "bold")) +
+  geom_text(aes(label = Fehlende_Gene), vjust = 1.5, color = "black")
+```
+```{r correlation cluster heatmap}
+# based on group A genes as those were used for training and intersect only 
+# to avoid any effect through imputation
+
+exprs_matrix <- train_exprs_merged_intersect[, -1]  
+exprs_matrix <- as.matrix(exprs_matrix)  
+correlation_all <- cor(exprs_matrix, method = "pearson")
+correlation_all[lower.tri(correlation_all, diag = TRUE)] <- NA  
+cor_values <- na.omit(as.vector(correlation_all))
+
+# Extrahiere alle nicht-NA Werte der oberen Dreiecksmatrix
+cor_values <- na.omit(as.vector(correlation_all))
+num_high_corr <- sum(cor_values >= 0.75)
+
+
+# Create sequence for corr sums
+breaks <- seq(-1, 1, by = 0.01)
+cor_counts <- hist(cor_values, breaks = breaks, plot = FALSE)$counts
+
+# create df for the plot
+cor_df <- data.frame(
+  correlation = breaks[-length(breaks)],  
+  count = cor_counts                      
+)
+
+
+ggplot(cor_df, aes(x = correlation, y = count)) +
+  geom_line(color = "blue", linewidth = 1) +  
+   
+  scale_y_log10(labels = function(x) format(x, big.mark = ",", scientific = FALSE)) +
+  labs(title = "Distribution of Expression Correlation (Log-Scale)",
+       x = "Correlation (Pearson)",
+       y = "Number of Pairs") +
+  theme_minimal()
+
+```
+```{r kaplan meier curves}
+kaplan_meier_pData <- all_pData
+kaplan_meier_pData[which(is.na(kaplan_meier_pData$BCR_STATUS)), c("MONTH_TO_BCR")] <- kaplan_meier_pData[which(is.na(kaplan_meier_pData$BCR_STATUS)), c("MONTH_TO_DOD")]
+kaplan_meier_pData[which(is.na(kaplan_meier_pData$BCR_STATUS)), c("BCR_STATUS")] <- kaplan_meier_pData[which(is.na(kaplan_meier_pData$BCR_STATUS)), c("DOD_STATUS")]
+unique(kaplan_meier_pData$STUDY)
+
+
+
+
+
+
+# Define cohort groups
+aggregated_cohorts <- c("Atlanta_2014_Long", "Belfast_2018_Jain", "CamCap_2016_Ross_Adams",
+                         "CancerMap_2017_Luca", "CPC_GENE_2017_Fraser", "CPGEA_2020_Li",
+                         "DKFZ_2018_Gerhauser", "MSKCC_2010_Taylor", "Stockholm_2016_Ross_Adams")
+
+individual_cohorts <- c("Ribolution_prad", "Ribolution_ukd2")
+
+# Create a new grouping column
+kaplan_meier_pData <- kaplan_meier_pData %>%
+  mutate(CohortGroup = case_when(
+    STUDY %in% aggregated_cohorts ~ "Aggregated_Cohorts",
+    STUDY %in% individual_cohorts ~ STUDY,
+    STUDY %in% rename_map[individual_cohorts] ~ STUDY,
+    TRUE ~ NA_character_
+  ))
+
+
+
+# ---- Plot 1: Aggregated cohorts vs. Ribolution_prad ----
+km_data_1 <- kaplan_meier_pData %>%
+  filter(CohortGroup %in% c("Aggregated_Cohorts", "Ribolution_prad"))
+
+surv_obj_1 <- Surv(time = km_data_1$MONTH_TO_BCR, event = km_data_1$BCR_STATUS)
+fit_1 <- survfit(surv_obj_1 ~ CohortGroup, data = km_data_1)
+
+
+p1 <- ggsurvplot(
+  fit_1,
+  data = km_data_1,
+  conf.int = TRUE,
+  censor = FALSE,  
+  xlab = "Months to BCR",
+  ylab = "Survival Probability",
+  title = "Kaplan-Meier Curve: Aggregated Cohorts 1-9 vs. Cohort 10",
+  legend.title = "Cohort",
+  legend.labs = c("Aggregated Cohorts 1-9", "Cohort 10")
+)
+
+# ---- Plot 2: All 10 cohorts separately ----
+# Ensure only the first 10 cohorts are included (excluding "Ribolution_ukd2")
+# Rename
+km_data_2 <- kaplan_meier_pData %>%
+  filter(STUDY %in% c(aggregated_cohorts, "Ribolution_prad")) %>%
+  mutate(STUDY = recode(STUDY, !!!rename_map))  # Hier werden die Namen ersetzt
+
+# Kaplan-Meier Survival Object 
+surv_obj_2 <- Surv(time = km_data_2$MONTH_TO_BCR, event = km_data_2$BCR_STATUS)
+
+# fit modell 
+fit_2 <- survfit(surv_obj_2 ~ STUDY, data = km_data_2)
+
+p2 <- ggsurvplot(
+  fit_2,
+  data = km_data_2,
+  risk.table = FALSE,
+  pval = FALSE,
+  conf.int = FALSE,
+  censor = FALSE,  
+  xlab = "Months to BCR",
+  ylab = "Survival Probability",
+  title = "Kaplan-Meier Curves: All 10 Cohorts Individually",
+  legend.title = "Cohorts",
+  legend.labs = unique(km_data_2$STUDY)
+)
+
+# manually set colors
+p2<- ggpar(p2, palette = colors_10)
+
+# Plot 
+print(p)
+
+# ---- Plot 3: Only Ribolution_ukd2 ----
+km_data_3 <- kaplan_meier_pData %>%
+  filter(STUDY == "Ribolution_ukd2")
+
+surv_obj_3 <- Surv(time = km_data_3$MONTH_TO_BCR, event = km_data_3$BCR_STATUS)
+fit_3 <- survfit(surv_obj_3 ~ 1, data = km_data_3)  
+
+p3 <- ggsurvplot(
+  fit_3,
+  data = km_data_3,
+  risk.table = FALSE,
+  pval = TRUE,
+  conf.int = TRUE,
+  censor = FALSE,  
+  xlab = "Months to BCR",
+  ylab = "Survival Probability",
+  title = "Kaplan-Meier Curve: Cohort 11",
+  legend.title = "Cohort",
+  legend.labs = "Cohort 11" 
+)
+
+
+# Filter only the first 10 cohorts (excluding Ribolution_ukd2)
+km_data_risk_table <- kaplan_meier_pData %>%
+  filter(STUDY %in% c(aggregated_cohorts, "Ribolution_prad"))  # Excludes "Ribolution_ukd2"
+
+# Create survival object
+surv_obj_risk_table <- Surv(time = km_data_risk_table$MONTH_TO_BCR, event = km_data_risk_table$BCR_STATUS)
+
+# Fit Kaplan-Meier model (for risk table only)
+fit_risk_table <- survfit(surv_obj_risk_table ~ STUDY, data = km_data_risk_table)
+
+# Generate only the risk table
+ggsurvtable(
+  fit_risk_table,
+  data = km_data_risk_table,
+  xlab = "Months to BCR",
+  ylab = "Cohorts",
+  title = "Risk Table for the First 10 Cohorts"
+)
+
+
+```
