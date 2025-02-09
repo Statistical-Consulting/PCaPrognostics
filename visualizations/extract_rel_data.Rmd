@@ -65,20 +65,40 @@ for(i in 2:9){
 }
 all_pData_common_cols <- a_pData
 for(i in 1:2){
-  all_pData_common_cols <- rbind(all_pData_common_cols, pData(cohorts_b[[i]])[common_cols])
+  all_pData_common_cols <- rbind(all_pData_common_cols, cohorts_b[[i]]$pData[common_cols])
 }
 
 ```
 ```{r load data, include=FALSE}
-median_observation_time_no_event <- median(na.omit(all_pData_common_cols[all_pData_common_cols$BCR_STATUS == 0,c("MONTH_TO_BCR")]))
+mean_observation_time_no_event_a <- 
+  mean(na.omit(all_pData_common_cols[a_pData$BCR_STATUS == 0,c("MONTH_TO_BCR")]))
+
+mean_observation_time_no_event_10 <- mean(na.omit(cohorts_b[[1]]$
+                                      pData[common_cols][cohorts_b[[1]]$pData[common_cols]$BCR_STATUS == 0,c("MONTH_TO_BCR")]))
+
+mean_observation_time_no_event_11 <- median(na.omit(cohorts_b[[2]]
+                                      $pData[common_cols][cohorts_b[[2]]$pData[common_cols]$DOD_STATUS == 0,c("MONTH_TO_DOD")]))
+
+mean_observation_to_BCR_a <- 
+  mean(na.omit(all_pData_common_cols[a_pData$BCR_STATUS == 1,c("MONTH_TO_BCR")]))
+
+mean_observation_to_BCR_10 <- mean(na.omit(cohorts_b[[1]]$
+                                      pData[common_cols][cohorts_b[[1]]$pData[common_cols]$BCR_STATUS == 1,c("MONTH_TO_BCR")]))
+
+mean_observation_to_DOD_11 <- median(na.omit(cohorts_b[[2]]
+                                      $pData[common_cols][cohorts_b[[2]]$pData[common_cols]$DOD_STATUS == 1,c("MONTH_TO_DOD")]))
+
+
+
+
+
 numb_peculiar_follow_up_times <- sum(na.omit(all_pData_common_cols[all_pData_common_cols$BCR_STATUS==0, c("MONTH_TO_BCR")]==all_pData_common_cols[all_pData_common_cols$BCR_STATUS==0, c("MONTH_TO_LAST_FOLLOW_UP")])==FALSE)
-
+test <- cohorts_b[[1]]$pData[common_cols]
 ```
 ```{r load data, include=FALSE}
-avrg_month_to_bcr <- c(cohorts_b[[1]]$pData$MONTH_TO_BCR)
-for (i in 1:9){
-  avrg_month_to_bcr <- c(avrg_month_to_bcr, cohorts_a[[i]]$pData$MONTH_TO_BCR)
-}
-avrg_month_to_bcr <- mean(avrg_month_to_bcr)
-avrg_month_to_dod <- mean(cohorts_b[[2]]$pData$MONTH_TO_DOD)
+
+sum(is.na(all_pData$AGE))
+t <- as.numeric(all_pData$PRE_OPERATIVE_PSA)
+sum(is.na(t))
+t
 ```
