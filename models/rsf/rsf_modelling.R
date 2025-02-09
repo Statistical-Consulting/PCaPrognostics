@@ -1,4 +1,3 @@
-# Load necessary libraries
 library(randomForestSRC)
 library(caret)
 library(dplyr)
@@ -11,12 +10,17 @@ library(rsample)
 library(purrr)
 library(SurvMetrics)
 
-# ---------------------------------------------------- resampling functions
+
+#' @description Performs Nested Resampling with Autoencoder Data
+#' @param data Data frame containing the training data for tuning.
+#' @param hps Data frame of hyperparameter combinations, where each row is one set.
+#' @param curr_coh String representing the current cohort
+#' @return A single row (set of hyperparameters) from hps that achieved the highest
+#'   average concordance index (c-index) across the inner folds.
 do_resampling_autoenc <- function(data, hps, curr_coh){
   inner_splits <- group_vfold_cv(data, group = cohort)
   inner_perf = setNames(data.frame(matrix(ncol = 2, nrow = nrow(hps))), c("hp_indx", "ci"))
   for (i in 1:nrow(hps)){
-      print(i)
       mean_ci <- numeric(8)
       for (j in seq_along(inner_splits$splits)) {
         inner_split <- inner_splits$splits[[j]]
@@ -40,10 +44,6 @@ do_resampling_autoenc <- function(data, hps, curr_coh){
 
         X_train_inner <- as.data.frame(X_train_inner %>% select(-c(cohort, X)))
         X_test_inner <- as.data.frame(X_test_inner %>% select(-c(cohort, X)))
-        print(ncol(X_train_inner))
-        print(ncol(X_test_inner))
-        # rfsrc_tmp <- rfsrc(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = X_train_inner, ntree = hps[i,'ntree'])
-        #print(hps[i,])
         rfsrc_tmp <- rfsrc.fast(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = X_train_inner, 
           perf.type = 'none', 
           mtry = hps[i, 'mtry'], ntree = hps[i, 'ntree'], nodesize = hps[i, 'nodesize'], 
@@ -52,23 +52,25 @@ do_resampling_autoenc <- function(data, hps, curr_coh){
 
         preds <- predict(rfsrc_tmp, newdata = X_test_inner)
         ci <- get.cindex(X_test_inner$MONTH_TO_BCR, X_test_inner$BCR_STATUS, -preds$predicted)
-        #print(ci)
         mean_ci[j] = ci
         }
-      #print(mean_ci)
       inner_perf[i, ] <- c(i, mean(mean_ci))
     }
-    #print(inner_perf)
     best_hp <- inner_perf[which.max(inner_perf$ci), 'hp_indx']
     return(hps[best_hp,])
   }
 
 
+#' @description Performs Nested Resampling without Autoencoder Data
+#' @param data Data frame containing the training data for tuning.
+#' @param hps Data frame of hyperparameter combinations, where each row is one set.
+#' @param curr_coh String representing the current cohort
+#' @return A single row (set of hyperparameters) from hps that achieved the highest
+#'   average concordance index (c-index) across the inner folds.
 do_resampling <- function(data, hps, curr_coh) {
   inner_splits <- group_vfold_cv(data, group = cohort)
   inner_perf = setNames(data.frame(matrix(ncol = 2, nrow = nrow(hps))), c("hp_indx", "ci"))
   for (i in 1:nrow(hps)){
-    print(i)
     mean_ci <- numeric(8)
     for (j in seq_along(inner_splits$splits)) {
       inner_split <- inner_splits$splits[[j]]
@@ -76,14 +78,10 @@ do_resampling <- function(data, hps, curr_coh) {
       inner_test <- assessment(inner_split)
       test_cohort <- as.character(inner_test$cohort[1])
       print(test_cohort)
-      # TODO: load csv file using cur cohort and test cohort
-      # relaod inner train, inner split
 
       X_train_inner <- as.data.frame(inner_train %>% select(-c(cohort)))
       X_test_inner <- as.data.frame(inner_test %>% select(-c(cohort)))
 
-      # rfsrc_tmp <- rfsrc(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = X_train_inner, ntree = hps[i,'ntree'])
-      #print(hps[i,])
       rfsrc_tmp <- rfsrc.fast(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = X_train_inner, 
         perf.type = 'none', 
         mtry = hps[i, 'mtry'], ntree = hps[i, 'ntree'], nodesize = hps[i, 'nodesize'], 
@@ -92,24 +90,28 @@ do_resampling <- function(data, hps, curr_coh) {
 
       preds <- predict(rfsrc_tmp, newdata = X_test_inner)
       ci <- get.cindex(X_test_inner$MONTH_TO_BCR, X_test_inner$BCR_STATUS, -preds$predicted)
-      #print(ci)
       mean_ci[j] = ci
       }
-    #print(mean_ci)
     inner_perf[i, ] <- c(i, mean(mean_ci))
   }
-  #print(inner_perf)
   best_hp <- inner_perf[which.max(inner_perf$ci), 'hp_indx']
   return(hps[best_hp,])
 }
 
-# ------------------------------------------------------------- Load data
-prepare_data <- function(use_exprs, use_pData, vars_pData = NA, use_aenc = FALSE){
+#' @description Prepares data for modelling
+#' @param use_exprs (bool) Wether gene data is used as covariates in general 
+#' @param use_inter (bool) TRUE: Uses intersection data, FALSE: Uses common genes data
+#' @param use_pData (bool) Wether clinical data is used as covariates
+#' @param vars_pData (string vector) Column names of clinical variables to be used
+#' @param use_aenc (bool) Wether to use the latent representation obtained from the autoencoder
+#' @return dataframe of loaded data
+prepare_data <- function(use_exprs, use_inter, use_pData, use_aenc = FALSE, vars_pData = NA){
     if(use_exprs){
-        exprs_data <- as.data.frame(read_csv('data/scores/train_scores.csv', lazy = TRUE))
-        #exprs_data <- as.data.frame(read_csv('data/merged_data/exprs/common_genes/common_genes_knn_imputed.csv', lazy = TRUE))
-        exprs_data[, 1] <- NULL
-        print(str(exprs_data))
+      if(use_inter)
+        exprs_data <- as.data.frame(read_csv('data/merged_data/exprs/intersection/exprs_intersect.csv', lazy = TRUE))
+      else 
+        exprs_data <- as.data.frame(read_csv('data/merged_data/exprs/common_genes/common_genes_knn_imputed.csv', lazy = TRUE))
+      exprs_data[, 1] <- NULL
     }
         df_pData = read.csv2('data/merged_data/pData/imputed/merged_imputed_pData.csv', sep = ',')
         print(str(df_pData))
@@ -140,6 +142,12 @@ prepare_data <- function(use_exprs, use_pData, vars_pData = NA, use_aenc = FALSE
         return(cbind(MONTH_TO_BCR, BCR_STATUS, X, cohort, exprs_data))
     } else if (use_pData && use_aenc){
         return(df_pData)
+    } else if ((!use_pData && use_aenc)){
+        MONTH_TO_BCR <- df_pData$MONTH_TO_BCR
+        BCR_STATUS <- df_pData$BCR_STATUS
+        X <- df_pData$X
+        df <- data.frame(MONTH_TO_BCR = MONTH_TO_BCR, BCR_STATUS = BCR_STATUS, X = X, cohort = cohort)
+        return(df)
     } else if (!use_pData && use_aenc){
         MONTH_TO_BCR <- df_pData$MONTH_TO_BCR
         BCR_STATUS <- df_pData$BCR_STATUS
@@ -149,23 +157,39 @@ prepare_data <- function(use_exprs, use_pData, vars_pData = NA, use_aenc = FALSE
     }
 }
 
-data_cmplt = prepare_data(FALSE, FALSE, c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'), use_aenc = TRUE)  
-print(str(data_cmplt))
+# ------------------------------------------------------------- Modelling
+# set bools for preparing the data
+use_aenc = FALSE # if latent space from AE is to be used
+use_inter = TRUE # if gene data in general is to be used
+use_exprs = TRUE # if intersection data is to be used --> if FALSE & use_inter then imputed/common genes are used
+use_pData = TRUE # if clinical data is used
+vars_pData = c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA')
+
+
+data_cmplt = prepare_data(use_exprs, use_inter, use_pData, use_aenc, vars_pData)
 # ------------------------------------------------------------- Create Splits and grids for tuning
 outer_splits <- group_vfold_cv(data_cmplt, group = cohort)
+
+# hyper_grid <- expand.grid(
+#   ntree = c(100), 
+#   nsplit = 10, 
+#   mtry = c(ceiling(sqrt(ncol(data_cmplt))), ceiling(log2(ncol(data_cmplt))), NULL), 
+#   nodesize = c(10, 15, 20), 
+#   perf.type = "none", 
+#   save.memory = TRUE
+# )
+
 
 hyper_grid <- expand.grid(
   ntree = c(100), 
   nsplit = 10, 
-  mtry = c(ceiling(sqrt(ncol(data_cmplt))), ceiling(log2(ncol(data_cmplt))), NULL), 
-  nodesize = c(10, 15, 20), 
+  mtry = c(ceiling(sqrt(ncol(data_cmplt)))), 
+  nodesize = c(20), 
   perf.type = "none", 
   save.memory = TRUE
 )
 
-print(hyper_grid)
-
-# # ------------------------------------------------------------ Do nested resampling with AUTOENC
+# ------------------------------------------------------------ Do nested resampling
 outer_perf = setNames(data.frame(matrix(ncol = 2, nrow = 9)), c("testing_cohort", "ci"))
 for (i in seq_along(outer_splits$splits)) {
   # Get the split object
@@ -173,23 +197,25 @@ for (i in seq_along(outer_splits$splits)) {
   outer_train <- analysis(outer_split)
   outer_test <- assessment(outer_split)
   test_cohort <- as.character(outer_test$cohort[1])
-  # TODO: Generate path for test cohort
-  print(test_cohort)
 
-  best_hps <- do_resampling_autoenc(outer_train, hyper_grid, test_cohort)
+  if(use_aenc){
+      best_hps <- do_resampling_autoenc(outer_train, hyper_grid, test_cohort)
+      data_path <- paste0('pretrnd_models_ae\\csv\\' , test_cohort, '.csv') 
+      anec_data = read.csv(data_path) %>% mutate_if(is.character, factor)
+      X_train_outer <- as.data.frame(outer_train)
+      X_test_outer <- as.data.frame(outer_test)
 
-  data_path <- paste0('pretrnd_models_ae\\csv\\' , test_cohort, '.csv') 
-  anec_data = read.csv(data_path) %>% mutate_if(is.character, factor)
-  print(str(anec_data))
+      X_train_outer = left_join(X_train_outer, anec_data, by = "X")
+      X_test_outer = left_join(X_test_outer, anec_data, by = "X")
 
-  X_train_outer <- as.data.frame(outer_train)
-  X_test_outer <- as.data.frame(outer_test)
-
-  X_train_outer = left_join(X_train_outer, anec_data, by = "X")
-  X_test_outer = left_join(X_test_outer, anec_data, by = "X")
-
-  X_train_outer <- as.data.frame(X_train_outer %>% select(-c(cohort, X)))
-  X_test_outer <- as.data.frame(X_test_outer %>% select(-c(cohort, X)))
+      X_train_outer <- as.data.frame(X_train_outer %>% select(-c(cohort, X)))
+      X_test_outer <- as.data.frame(X_test_outer %>% select(-c(cohort, X)))
+  }
+  else {
+     best_hps <- do_resampling(outer_train, hyper_grid, test_cohort)
+     X_train_outer <- as.data.frame(outer_train %>% select(-c(cohort, X)))
+     X_test_outer <- as.data.frame(outer_test %>% select(-c(cohort, X)))
+  }
 
   outer_mod <- rfsrc.fast(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = X_train_outer, 
         perf.type = 'none', 
@@ -202,29 +228,34 @@ for (i in seq_along(outer_splits$splits)) {
   
   outer_perf[i, ] <- c(test_cohort, outer_cindex)
 }
-
 print(outer_perf)
-write.csv(outer_perf, "rsf_autoencoder_paper.csv")
+write.csv(outer_perf, "test.csv")
+
+if(use_aenc){
+  final_best_hps <- do_resampling_autoenc(data_cmplt, hyper_grid, '')
+  data_path <- paste0('pretrnd_models_ae\\csv\\pretrnd_cmplt.csv') 
+  aenc_data <- read.csv(data_path) %>% mutate_if(is.character, factor)
+  aenc_data <- left_join(data_cmplt, aenc_data, by = "X")
+  str(aenc_data)
+  anec_data <- as.data.frame(aenc_data %>% select(-c(cohort, X)))
+  final_model <- rfsrc.fast(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = anec_data, 
+          perf.type = 'none', 
+          mtry = final_best_hps[1, 'mtry'], ntree = final_best_hps[1, 'ntree'], nodesize = final_best_hps[1, 'nodesize'], 
+          nsplit = final_best_hps[1, 'nsplit'], save.memory = FALSE,
+          forest = TRUE)
+} else {
+  final_best_hps <- do_resampling(data_cmplt, hyper_grid)
+  data_cmplt <- as.data.frame(data_cmplt %>% select(-c(cohort)))
+  final_model <- rfsrc.fast(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = data_cmplt, 
+          perf.type = 'none', 
+          mtry = final_best_hps[1, 'mtry'], ntree = final_best_hps[1, 'ntree'], nodesize = final_best_hps[1, 'nodesize'], 
+          nsplit = final_best_hps[1, 'nsplit'], save.memory = FALSE,
+          forest = TRUE)
+}
+save(final_model,file="test.Rdata")
 
 
-final_best_hps <- do_resampling_autoenc(data_cmplt, hyper_grid, '')
-data_path <- paste0('pretrnd_models_ae\\csv\\pretrnd_cmplt.csv') 
-aenc_data <- read.csv(data_path) %>% mutate_if(is.character, factor)
-aenc_data <- left_join(data_cmplt, aenc_data, by = "X")
-str(aenc_data)
-anec_data <- as.data.frame(aenc_data %>% select(-c(cohort, X)))
-# todo: insert HPs from above + Remove irrelevant cols
-final_model <- rfsrc.fast(Surv(MONTH_TO_BCR, BCR_STATUS) ~ . , data = anec_data, 
-        perf.type = 'none', 
-        mtry = final_best_hps[1, 'mtry'], ntree = final_best_hps[1, 'ntree'], nodesize = final_best_hps[1, 'nodesize'], 
-        nsplit = final_best_hps[1, 'nsplit'], save.memory = FALSE,
-        forest = TRUE)
-
-
-save(final_model,file="rsf_autoencoder_paper.Rdata")
-
-
-# ------------------------------------------------------------- Do nested resampling wo autoenc
+# # ------------------------------------------------------------- Do nested resampling wo autoenc
 # outer_perf = setNames(data.frame(matrix(ncol = 2, nrow = 9)), c("testing_cohort", "ci"))
 # for (i in seq_along(outer_splits$splits)) {
 #   # Get the split object
