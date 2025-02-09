@@ -130,7 +130,7 @@ ggplot(tissue_df_long, aes(x = Tissue_Type, y = Count, fill = Group)) +
   geom_bar(stat = "identity", position = position_stack(reverse = TRUE)) +
   scale_fill_manual(values = c("Group A" = "#ffcd66", "Group B" = "#00706d")) +
   labs(
-    title = "Number of patients by tissue type",
+    title = "Number of Patients by Tissue Type",
     x = "Tissue Type",
     y = "Number of patients",
     fill = "Group"

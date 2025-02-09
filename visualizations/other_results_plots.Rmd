@@ -471,8 +471,8 @@ combined_results <- bind_rows(
 # 6) Plot
 model_colors <- c(
   "CoxPH" = "black",
-  "Priority Lasso" = "darkgrey",
-  "Cox PASNet" = "lightgrey",
+  "Priority Lasso" = "brown",
+  "Cox PASNet" = "darkgrey",
   "GBoost" = "red",  
   "DeepSurv" = "blue",  
   "RSF" = "green",  

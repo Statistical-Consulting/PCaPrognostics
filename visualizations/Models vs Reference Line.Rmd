@@ -344,7 +344,7 @@ fp3 <- ggplot(best_test_results_both_cohorts_train_with_avg, aes(y = Model, x = 
     # Benchmark
   geom_segment(aes(
     x = ci,
-    xend = train_mean_all_models,  
+    xend = best_training_means,  
     y = Model,
     yend = Model
   ),
