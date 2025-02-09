@@ -1,26 +1,34 @@
-import os
-import sys
 import pandas as pd
 import numpy as np
-from pathlib import Path
-import logging
 from catboost import CatBoostRegressor, Pool
 
-
-# Imports
-from preprocessing.data_container import DataContainer
-from utils.evaluation import cindex_score
-from models.modelling_process import ModellingProcess
-from sksurv.ensemble import GradientBoostingSurvivalAnalysis
-from utils.evaluation import EarlyStoppingMonitor
 from sklearn.model_selection import train_test_split
 from lifelines.utils import concordance_index
-from sklearn.utils.validation import check_X_y, check_is_fitted
+from sklearn.utils.validation import check_is_fitted
 from sklearn.base import BaseEstimator, RegressorMixin
 
-
-
 class CatBoostModel(BaseEstimator, RegressorMixin): 
+    """
+    A custom CatBoost-based survival analysis model compatible with scikit-learn.
+
+    Args:
+        cat_features (list, optional): List of categorical feature column names. Default is ['TISSUE'].
+        iterations (int, optional): Number of boosting iterations. Default is None.
+        loss_function (str, optional): Loss function to use. Default is "Cox" for survival analysis.
+        eval_metric (str, optional): Evaluation metric for model validation. Default is "Cox".
+        early_stopping_rounds (int, optional): Number of rounds for early stopping. Default is 5.
+        rsm (float, optional): Random subspace method fraction. Default is 0.1.
+        depth (int, optional): Depth of trees in the model. Default is None.
+        min_data_in_leaf (int, optional): Minimum number of data points in a leaf. Default is None.
+        learning_rate (float, optional): Learning rate for boosting. Default is 0.1.
+        from_autoenc_pdata (bool, optional): Whether the input data comes from an autoencoder with clinical and gene data. Default is False.
+        from_autoenc_exprs (bool, optional): Whether the input data comes from an autoencoder with no clincal and only gene data. Default is False.
+    
+    Attributes:
+        model (CatBoostRegressor): Trained CatBoost model.
+        is_fitted_ (bool): Indicator if the model has been trained.
+    """
+
     def __init__(self, cat_features = ['TISSUE'], 
                  iterations = None, loss_function = "Cox", eval_metric = "Cox", early_stopping_rounds = 5, 
                  rsm = 0.1, depth = None, min_data_in_leaf = None, learning_rate = 0.1, from_autoenc_pdata = False, from_autoenc_exprs = False): 
@@ -42,12 +50,19 @@ class CatBoostModel(BaseEstimator, RegressorMixin):
         
         
     def _prepare_data(self, X, y):
-        
+        """
+        Prepares the dataset for training based on https://github.com/catboost/tutorials/blob/master/regression/survival.ipynb
+        Args:
+            X (pd.DataFrame): Feature matrix.
+            y (structured np.ndarray): Survival labels with 'time' and 'status' fields.
+
+        Returns:
+            tuple: Feature matrix X and labels y.
+        """
         y = pd.DataFrame(y)
         if self.loss_function == 'Cox': 
             y['label'] = np.where(y['status'], y['time'], - y['time'])
             y_fin = y['label']
-        # TODO: Include other loss
         else: 
             y['y_lower'] = y['time']
             y['y_upper'] = np.where(y['status'], y['time'], -1)
@@ -55,31 +70,22 @@ class CatBoostModel(BaseEstimator, RegressorMixin):
         
         if (self.from_autoenc_pdata): 
             columns = [str(i) for i in range(64)] + ['TISSUE', 'AGE', 'GLEASON_SCORE', 'PRE_OPERATIVE_PSA']
-
-            # Convert to DataFrame
             X = pd.DataFrame(X, columns=columns)
         if (self.from_autoenc_exprs): 
             columns = [str(i) for i in range(64)]
-
-            # Convert to DataFrame
             X = pd.DataFrame(X, columns=columns)
         
         if self.cat_features is not None: 
             for col in self.cat_features:
                 X.loc[:, col] = X.loc[:,col].astype('category')
         
-        #data = pd.concat([X, y], dim = 1)
-        #print(data.info())
+
         return X, y_fin
     
     def fit(self, X, y): 
-        # early stopping mit 0.1 des training sets
         X, y = self._prepare_data(X, y)
 
         train_X, val_X, train_y, val_y = train_test_split(X, y, test_size=0.1)
-
-        #train_pool = Pool(train[features], label=train['label'], cat_features=cat_features)
-        #val_pool = Pool(val[features], label=test['label'], cat_features=cat_features)
 
         self.model = CatBoostRegressor(iterations=self.iterations,
                         loss_function=self.loss_function,

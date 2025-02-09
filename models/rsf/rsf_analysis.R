@@ -1,5 +1,4 @@
 library(randomForestSRC)
-# Load necessary libraries
 library(randomForestSRC)
 library(caret)
 library(dplyr)
@@ -12,9 +11,9 @@ library(rsample)
 library(purrr)
 library(SurvMetrics)
 
-
-
-# ------------------ functions to load perf. results
+#' @description Loads and combines performance results from CSV files
+#' @param results_path (str): Path to the directory containing CSV result files.
+#' @return A combined data frame containing model performance results
 load_all_results <- function(results_path) {
     csv_files <- list.files(results_path, pattern = "\\.csv$", full.names = TRUE)
     combined_data <- lapply(csv_files, function(file) {
@@ -27,7 +26,6 @@ load_all_results <- function(results_path) {
         contains_aenc <- grepl("aenc|auto|autoenc", file, ignore.case = TRUE)
         contains_scores <- grepl("score|scores", file, ignore.case = TRUE)
 
-        # Create a vector of components based on conditions
         components <- c(
         if (contains_pData) "pData",
         if (contains_intersection) "Intersection",
@@ -36,11 +34,9 @@ load_all_results <- function(results_path) {
         if (contains_scores) "Scores"
         )
 
-        # Join non-empty components with "_" as a separator
         dataset <- paste(components, collapse = "_")
-
-        # Assign dataset to a dataframe column
         df$dataset <- dataset
+        df$model_class <- 'RSF'
         return(df)
 
   }) %>% bind_rows()
@@ -49,35 +45,44 @@ load_all_results <- function(results_path) {
   return(combined_data)
 }
 
+#' @description Aggregates model performance results
+#' @param results A data frame containing performance results of the different splits across models
+#' @return A data frame with mean and standard deviation of the C-Index across splits
 aggregate_results <- function(results) {
     print(results)
     results_aggr <- results %>% group_by(model) %>% summarise(mean = mean(ci), sd = sd(ci))
     return(results_aggr)
 }
 
+
+#' @description Merge nested cross-validation results with test performance results
+#' @param results_nstd Data frame containing nested resampling results.
+#' @param results_test Data frame containing test performance results.
+#' @return A merged data frame.
 combine_results <- function(results_nstd, results_test){
     df <- merge(results_nstd, results_test)
     # df[, 1] <- NULL
     return(df)
 }
 
-# -------------------- functions to load feat. imp from model
+#' @description Extract feature importance from a trained model
+#' @param final_model A trained rsf model.
+#' @return A data frame containing non-zero feature vimps
 load_feat_imp <- function(final_model){
-    # model = load("pen_lasso_exprs_imputed_pData.Rdata")
-    # load(model_path)
-    vimp_rsf <- vimp(final_model)
+    vimp_rsf <- vimp(final_model, block.size="ntree", importance="anti")
     feature_imp = vimp_rsf$importance
 
-    # Convert to a data frame
     importance_df <- data.frame(
     feature = names(feature_imp),
     value = as.numeric(feature_imp)
     )
-    #importance_df <- importance_df[order(-importance_df$value), ]
     importance_df <- importance_df %>% filter(value > 0)
     return(importance_df)
 }
 
+#' @description Extracts feature importance for all models in a given directory
+#' @param model_path Path to the directory containing trained models.
+#' @return A data frame combining feature importance values for all models.
 feat_imp_all_models <- function(model_path){
     files <- list.files(model_path)
     combined_data <- lapply(files, function(file) {
@@ -88,13 +93,12 @@ feat_imp_all_models <- function(model_path){
         contains_aenc <- grepl("aenc|auto|autoenc", file, ignore.case = TRUE)
         contains_scores <- grepl("score|scores", file, ignore.case = TRUE)
 
-        if (contains_aenc | contains_imputed |contains_intersection){
+        if (contains_aenc){
         }
         else{
 
         load(paste0(model_path, "\\", file))
 
-        # Create a vector of components based on conditions
         components <- c(
         if (contains_pData) "pData",
         if (contains_intersection) "Intersection",
@@ -103,25 +107,24 @@ feat_imp_all_models <- function(model_path){
         if (contains_scores) "Scores"
         )
 
-        # Join non-empty components with "_" as a separator
         dataset <- paste(components, collapse = "_")
 
         imps <- load_feat_imp(final_model)
         imps$dataset <- dataset
-        imps$model <- 'rsf'#gsub(".Rdata", "", basename(file))
+        imps$model <- 'RSF'
         return(imps)
         }
 
   }) %>% bind_rows()
-  #combined_data[, 1] <- NULL
-
   return(combined_data)
 }
 
-# ------------------- Get perfroamnce across all models for that model class
+#' @description Computes C-index for all models in a given directory
+#' @param model_path Path to the directory containing trained models.
+#' @return A data frame containing test performance results for all models.
 test_perf_all_models <- function(model_path){
     files <- list.files(model_path)
-    perf = setNames(data.frame(matrix(ncol = 3, nrow = length(files))), c("model", "ci_cohort1", "ci_cohort2"))
+    perf = setNames(data.frame(matrix(ncol = 5, nrow = length(files))), c("model", "model_class", "dataset", "ci_coh1", "ci_coh2"))
     for (i  in seq_along(files)) {
         #file = "rsf_pData.Rdata"
         file = files[[i]]
@@ -200,9 +203,18 @@ test_perf_all_models <- function(model_path){
         test_preds2 <- predict(final_model, newdata = data_co2)
         cindex2 <- get.cindex(data_co2$MONTH_TO_BCR, data_co2$BCR_STATUS, -test_preds2$predicted)
         
-        print(cindex1)
-        print(cindex2)
-        perf[i, ] <- c(gsub(".Rdata", "", file), cindex1, cindex2)
+        # Create a vector of components based on conditions
+        components <- c(
+        if (contains_pData) "pData",
+        if (contains_intersection) "Intersection",
+        if (contains_imputed) "Imputed",
+        if (contains_aenc) "AutoEncoder"
+        )
+
+        # Join non-empty components with "_" as a separator
+        dataset <- paste(components, collapse = "_")
+
+        perf[i, ] <- c(gsub(".Rdata", "", file), 'RSF', dataset, cindex1, cindex2)
     }
     return(perf)
 }
@@ -210,23 +222,23 @@ test_perf_all_models <- function(model_path){
 
 # ------------------------------------------------------------------------------------------------------------------
 # --------------------- load and inspect performance
-# results_path_nstd <- "models\\rsf\\results\\results"
-# combined_results_nstd <- load_all_results(results_path = results_path_nstd)
-# split_results_path <- 'results_modelling_splits\\splits_rsf.csv'
-# write.csv(combined_results_nstd, split_results_path)
+results_path_nstd <- "models\\rsf\\results\\results"
+combined_results_nstd <- load_all_results(results_path = results_path_nstd)
+split_results_path <- 'results_modelling_splits\\splits_rsf.csv'
+write.csv(combined_results_nstd, split_results_path)
 
 
-# combined_results_aggr <- aggregate_results(combined_results_nstd)
-# print(combined_results_aggr)
+combined_results_aggr <- aggregate_results(combined_results_nstd)
+print(combined_results_aggr)
 
-# # --------------------- Get test performances
-# test_perf <- test_perf_all_models("models\\rsf\\results\\model")
-# final_results <- combine_results(combined_results_aggr, test_perf)
+# --------------------- Get test performances
+test_perf <- test_perf_all_models("models\\rsf\\results\\model")
+final_results <- combine_results(combined_results_aggr, test_perf)
 
-# final_results_path <- 'results_modelling_ovs\\ov_rsf.csv'
-# write.csv(final_results, final_results_path)
+final_results_path <- 'results_modelling_ovs\\ov_rsf.csv'
+write.csv(final_results, final_results_path)
 
-feat_imps <- feat_imp_all_models("models\\rsf\\results\\model")
-print(feat_imps)
-feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_rsf.csv'
-write.csv(feat_imps, feat_imp_path)
+# feat_imps <- feat_imp_all_models("models\\rsf\\results\\model")
+# print(feat_imps)
+# feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_rsf_anti.csv'
+# write.csv(feat_imps, feat_imp_path)
