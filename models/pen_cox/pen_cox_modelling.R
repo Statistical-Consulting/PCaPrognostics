@@ -118,10 +118,10 @@ prepare_data <- function(use_exprs, use_inter, use_pData, use_aenc = FALSE, vars
 
 # ------------------------------------------------------------- Modelling
 # set bools for preparing the data
-use_aenc = FALSE
-use_inter = FALSE
-use_exprs = FALSE
-use_pData = TRUE
+use_aenc = FALSE # if latent space from AE is to be used
+use_inter = TRUE # if gene data in general is to be used
+use_exprs = TRUE # if intersection data is to be used --> if FALSE & use_inter then imputed/common genes are used
+use_pData = TRUE # if clinical data is used
 vars_pData = c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA')
 
 data_cmplt = prepare_data(use_exprs, use_inter, use_pData, use_aenc, vars_pData)
