@@ -717,11 +717,11 @@ fit_1 <- survfit(surv_obj_1 ~ CohortGroup, data = km_data_1)
 p1 <- ggsurvplot(
   fit_1,
   data = km_data_1,
-  conf.int = TRUE,
+  conf.int = FALSE,
   censor = FALSE,  
   xlab = "Months to BCR",
   ylab = "Observed % being BCR free",
-  title = "Kaplan-Meier Curve: Aggregated Cohorts 1-9 vs. Cohort 10",
+  title = "Kaplan-Meier Curve: Combined Cohorts 1-9 vs. Cohort 10",
   legend.title = "Cohort",
   legend.labs = c("Aggregated Cohorts 1-9", "Cohort 10")
 )
@@ -778,8 +778,8 @@ p3 <- ggsurvplot(
   fit_3,
   data = km_data_3,
   risk.table = FALSE,
-  pval = TRUE,
-  conf.int = TRUE,
+  pval = FALSE,
+  conf.int = FALSE,
   censor = FALSE,  
   xlab = "Months to DOD",
   ylab = "Observed Survival Rate",

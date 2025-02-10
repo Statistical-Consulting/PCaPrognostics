@@ -100,5 +100,5 @@ test <- cohorts_b[[1]]$pData[common_cols]
 sum(is.na(all_pData$AGE))
 t <- as.numeric(all_pData$PRE_OPERATIVE_PSA)
 sum(is.na(t))
-t
+sum(is.na(all_pData$AGE))
 ```
