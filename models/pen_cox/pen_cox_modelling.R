@@ -17,18 +17,24 @@ library(glmnet)
 #' @param data (dataframe) data set (both train and test data)
 #' @param alphas (numeric vector) One or more alpha values to try in cv.glmnet.
 #' @return Fitted cv.glment object
-do_resampling <- function(data, alphas) {
+do_resampling <- function(data, alphas, use_pData) {
   # Prepare survival outcome and predictors
-  y_train <- Surv(data$MONTH_TO_BCR, data$BCR_STATUS)
   inner_indcs <- as.numeric(as.factor(data$cohort))
-  x_train <- as.matrix(data %>% select(-c(MONTH_TO_BCR, BCR_STATUS, cohort)))
+  if(use_pData){
+  y_train <- Surv(data$tstart, data$MONTH_TO_BCR, data$BCR_STATUS)
+  x_train <- as.matrix(data %>% select(-c(cohort, MONTH_TO_BCR, BCR_STATUS, tstart)))
+  }
+  else {
+    y_train <- Surv(data$MONTH_TO_BCR, data$BCR_STATUS)
+    x_train <- as.matrix(data %>% select(-c(MONTH_TO_BCR, BCR_STATUS, cohort)))
+}
   
   if (length(alphas) == 1) {
     cvfit <- cv.glmnet(x_train, y_train, 
                        family = "cox", 
                        nfolds = 8, 
                        foldid = inner_indcs, 
-                       alpha = alphas, 
+                       alpha = alphas,
                        type.measure = "C")
     return(list(alpha = alphas, cvfit = cvfit))
   } else {
@@ -93,42 +99,47 @@ prepare_data <- function(use_exprs, use_inter, use_pData, use_aenc = FALSE, vars
         ohenc_pData <- data.frame(predict(dmy, newdata = cat_pData))
 
         df_pData <- cbind(num_pData, ohenc_pData, cohort, X)
+        # df_pData$gleason_time <- df_pData$GLEASON_SCORE * log(df_pData$MONTH_TO_BCR)
     }
     if(use_pData && use_exprs && !use_aenc){
-        return(cbind(df_pData, exprs_data))
-
-    } else if (use_pData && !use_exprs && !use_aenc) {
-       return(df_pData)
-    } else if (use_pData && use_aenc){
-        return(df_pData)
+        df <- cbind(df_pData, exprs_data)
+        df <- survSplit(Surv(MONTH_TO_BCR, BCR_STATUS)~., data = df, id = "ID",
+        cut = c(6, 64)) 
+        df <- df%>% select(-c(ID))
+        df$gleason_tstart <- scale(df$GLEASON_SCORE * df$tstart)
+    } else if ((use_pData && !use_exprs && !use_aenc) | use_pData && use_aenc) {
+        df <- df_pData
+        df <- survSplit(Surv(MONTH_TO_BCR, BCR_STATUS)~., data = df, id = "ID",
+        cut = c(6, 64))  
+        df <- df%>% select(-c(ID))
+        df$gleason_tstart <- scale(df$GLEASON_SCORE * df$tstart)
     } else if ((!use_pData && use_aenc)){
         MONTH_TO_BCR <- df_pData$MONTH_TO_BCR
         BCR_STATUS <- df_pData$BCR_STATUS
         X <- df_pData$X
         df <- data.frame(MONTH_TO_BCR = MONTH_TO_BCR, BCR_STATUS = BCR_STATUS, X = X, cohort = cohort)
-        return(df)
     } else if((!use_pData && use_exprs)){
         MONTH_TO_BCR <- df_pData$MONTH_TO_BCR
         BCR_STATUS <- df_pData$BCR_STATUS
         X <- df_pData$X
         df <- data.frame(MONTH_TO_BCR = MONTH_TO_BCR, BCR_STATUS = BCR_STATUS, X = X, cohort = cohort, exprs_data)
-        return(df)
     }
+    return(df)
 }
 
 # ------------------------------------------------------------- Modelling
 # set bools for preparing the data
 use_aenc = FALSE # if latent space from AE is to be used
-use_inter = TRUE # if gene data in general is to be used
+use_inter = FALSE # if gene data in general is to be used
 use_exprs = TRUE # if intersection data is to be used --> if FALSE & use_inter then imputed/common genes are used
-use_pData = TRUE # if clinical data is used
+use_pData = FALSE # if clinical data is used
 vars_pData = c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA')
 
 data_cmplt = prepare_data(use_exprs, use_inter, use_pData, use_aenc, vars_pData)
-
+print(nrow(data_cmplt))
 # Create Splits and grids for tuning
 outer_splits <- group_vfold_cv(data_cmplt, group = cohort)
-candidate_alphas <- seq(0.2, 1, by = 0.2)
+candidate_alphas <- seq(0.6, 1, by = 0.2)
 
 # Do nested resampling
 outer_perf = setNames(data.frame(matrix(ncol = 3, nrow = 9)), c("testing_cohort", "ci_se", "ci_min"))
@@ -149,15 +160,22 @@ for (i in seq_along(outer_splits$splits)) {
 
     outer_train = left_join(outer_train, anec_data, by = "X")
     outer_test = left_join(outer_test, anec_data, by = "X")
+    print(nrow(outer_test))
+    print(nrow(outer_train))
     } 
     outer_train <- as.data.frame(outer_train %>% select(-c(X)))
     outer_test <- as.data.frame(outer_test %>% select(-c(X)))
 
-    best_mod <- do_resampling(outer_train, candidate_alphas)
+    best_mod <- do_resampling(outer_train, candidate_alphas, use_pData)
 
-
-y_test_outer <- Surv(outer_test$MONTH_TO_BCR, outer_test$BCR_STATUS)
-X_test_outer <- as.matrix(outer_test %>% select(-c(cohort, MONTH_TO_BCR, BCR_STATUS)))
+if(use_pData){
+  y_test_outer <- Surv(outer_test$tstart, outer_test$MONTH_TO_BCR, outer_test$BCR_STATUS)
+  X_test_outer <- as.matrix(outer_test %>% select(-c(cohort, MONTH_TO_BCR, BCR_STATUS, tstart)))
+}
+else {
+  y_test_outer <- Surv(outer_test$MONTH_TO_BCR, outer_test$BCR_STATUS)
+  X_test_outer <- as.matrix(outer_test %>% select(-c(cohort, MONTH_TO_BCR, BCR_STATUS)))
+}
 
 test_preds_se <- predict(best_mod, X_test_outer,  s = 'lambda.1se')
 test_preds_min <- predict(best_mod, X_test_outer,  s = 'lambda.min')
@@ -166,7 +184,7 @@ outer_cindex_min <- apply(test_preds_min, 2, glmnet::Cindex, y=y_test_outer)
 outer_perf[i, ] <- c(test_cohort, outer_cindex_se, outer_cindex_min)
 }
 
-write.csv(outer_perf, "test.csv")
+write.csv(outer_perf, "final_imp.csv")
 
 # # --------------------------------------------------------------- Tuning + fitting of final model
 if (use_aenc){
@@ -174,12 +192,12 @@ if (use_aenc){
   aenc_data <- read.csv(data_path) %>% mutate_if(is.character, factor)
   aenc_data <- left_join(data_cmplt, aenc_data, by = "X")
   anec_data <- as.data.frame(aenc_data %>% select(-c(X)))
-  final_model <- do_resampling(anec_data, alphas = candidate_alphas)
+  final_model <- do_resampling(anec_data, alphas = candidate_alphas, use_pData)
 } else {
   data_cmplt <- as.data.frame(data_cmplt %>% select(-c(X)))
-  final_model <- do_resampling(data_cmplt, candidate_alphas)
+  final_model <- do_resampling(data_cmplt, candidate_alphas, use_pData)
 }
-save(final_model,file="test.Rdata")
+save(final_model,file="final_imp.Rdata")
 
 # ------------------------------------------------------------- 
 # library(survival)
