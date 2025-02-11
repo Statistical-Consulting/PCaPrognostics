@@ -3,13 +3,14 @@
 This repository contains files used during the consulting project for Fraunhofer IZI, including data preprocessing, modeling, and visualization of results.
 
 ## Code Architecture
-📌 *(Placeholder)
+![Uploading image.png…]()
+
 
 ## How to Work with This Code
 
 ### 1. Data Placement
 Before running the code, place the required data files in the `data` folder:
-- `Revised_ProstaTrend.Rds` (ProstaTrend-FFPE scores)
+- `Revised_ProstaTrend.Rds` (ProstaTrend-ffpe scores)
 - `PCa_cohorts.RDS` (training cohorts)
 - `PCa_cohorts_2.RDS` (test cohorts)
 
