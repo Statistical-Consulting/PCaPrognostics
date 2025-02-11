@@ -20,32 +20,67 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class ModellingProcess(): 
+    """
+    Class to handle the full modelling process for python  models with sklearn-interface. Includes data preparation, cross-validation, 
+    hyperparameter tuning, model fitting, and result saving.
+    """
     def __init__(self) -> None:
-        self.outer_cv = LeaveOneGroupOut()
-        self.inner_cv = LeaveOneGroupOut()
-        self.ss = GridSearchCV
-        self.pipe = None
-        self.cmplt_model = None
-        self.cmplt_pipeline = None
-        self.nrs = None
-        self.X = None
-        self.y = None
-        self.groups = None
-        self.path = None
-        self.fname_cv = None
+        """
+        Initializes the ModellingProcess instance with default attributes for cross-validation, 
+        pipeline setup, and data storage.
+        """
+        self.outer_cv = LeaveOneGroupOut()  # Outer cross-validation strategy: Scikit-learn's LeaveOneGroupOut
+        self.inner_cv = LeaveOneGroupOut()  # Inner cross-validation for hyperparameter tuning: Scikit-learn's LeaveOneGroupOut
+        self.ss = GridSearchCV  # Searchstrategy: Scikit-learn's GridSearchCV for hyperparameter tuning
+        self.pipe = None  # Scikit-learn Pipeline to handle preprocessing and model training
+        self.cmplt_model = None  # Final trained model after hyperparameter tuning
+        self.cmplt_pipeline = None  # Final pipeline after training
+        self.nrs = None  # Nested resampling results
+        self.X = None  # Training data features
+        self.y = None  # Training data labels
+        self.groups = None  # Cohort labels for cross-validation
+        self.path = None  # Directory path for saving model and results
+        self.fname_cv = None  # File name for saving cross-validation results
         pass
             
     def prepare_data(self, data_config, root): 
+        """
+        Prepares training data (group A) by loading features, labels, and groups using a DataContainer instance.
+        Sets features, labels, and groups as class instance attributes. 
+
+        Args:
+            data_config (dict): Configuration for data loading.
+            root (str): Root directory of the project.
+        """
         self.dc = DataContainer(data_config=data_config, project_root=root)
         self.X, self.y = self.dc.load_data()
         self.groups = self.dc.get_groups()
     
     def prepare_test_data(self, data_config, root): 
+        """
+        Prepares independent test data (group B) by loading features, labels, and groups using a DataContainer instance.
+        Sets features, labels, and groups as class instance attributes. 
+
+        Args:
+            data_config (dict): Configuration for data loading.
+            root (str): Root directory of the project.
+        """
         self.dc = DataContainer(data_config=data_config, project_root=root)
         self.X_test, self.y_test = self.dc.load_test_data()
         self.test_groups = self.dc.get_test_groups()
     
     def prepare_test_cohort_data(self, data_config, root, cohorts):
+        """
+        Loads independent test data for specific testing cohorts (group B).
+
+        Args:
+            data_config (dict): Configuration for data loading.
+            root (str): Root directory of the project.
+            cohorts (list): Cohorts of group B.
+
+        Returns:
+            tuple: Two lists containing features and targets per cohort.
+        """
         dc = DataContainer(data_config=data_config, project_root=root)
         X_cohs = list()
         y_cohs = list()
@@ -58,31 +93,19 @@ class ModellingProcess():
                 y_cohs.append(y)
         return X_cohs, y_cohs
         
-        
-    # def do_external_validation(self, model_path, ov_name = None): 
-    #     if self.cmplt_pipeline is None:
-    #         logger.warning("Didn't find any model/pipeline")
-    #         self.load_pipe(model_path)     
-    #     ind_X, ind_y = self.dc.load_val_cohrts()
-        
-    #     # TODO: Model/Pipeline.score
-    #     # sth. along the line
-    #     perf1 = self.cmplt_pipeline.score(ind_X, ind_y)
-    #     perf2 = self.cmplt_pipeline.score(ind_X, ind_y)
-
-        
-    #     if ov_name is not None: 
-    #         file_path = os.path.join(self.path, ov_name)
-
-    #         with open(file_path, 'r') as file:
-    #                 ov = file.read()
-    #         print("OV loaded successfully.")
-    #         # add entry for resepctive cells
-    #         ov.loc[self.fname_cv: "Performance TCH 1"] = perf1
-    #         ov.loc[self.fname_cv: "Performance TCH 2"] = perf2
-    #     # save file
     
     def do_modelling(self, pipeline_steps, config): 
+        """
+        Executes the complete modeling process, including pipeline creation, nested resampling, and final model fitting.
+
+        Args:
+            pipeline_steps (list): List of (name, transformer) tuples for creating the pipeline --> objects need to adhere to scikit learn interface /API.
+            config (dict): Configuration for the modeling process, including parameters for cross-validation,
+                           hyperparameter tuning, and result saving.
+
+        Returns:
+            tuple: Nested resampling results, final model, and complete, final pipeline.
+        """
         self._set_seed()
         
         if config.get("params_mp", None) is not None: 
@@ -102,10 +125,6 @@ class ModellingProcess():
             self.pipe = Pipeline(pipeline_steps) 
         
         param_grid, monitor, do_nested_resampling, refit_hp_tuning = self._get_config_vals(config)
-        
-        # TODO: do this
-        #param_grid = self._prefix_pipeline_params(param_grid, pipeline_steps)
-        #print(param_grid)
 
         try:
             logger.info("Start model training...")
@@ -139,6 +158,16 @@ class ModellingProcess():
     
     
     def fit_cmplt_model(self, param_grid, monitor = None): 
+        """
+        Performs hyperparameter tuning and fits the final model on all of group A.
+
+        Args:
+            param_grid (dict): Parameter grid for GridSearchCV.
+            monitor (optional): Additional monitor object for evaluation during training.
+
+        Returns:
+            tuple: The best model and the complete resampling result.
+        """
         logger.info("Do HP Tuning for complete model")
         res = self.ss(estimator=self.pipe, param_grid=param_grid, cv=self.outer_cv, n_jobs=4, verbose = 2, refit = True)
         if monitor is not None: 
@@ -152,7 +181,19 @@ class ModellingProcess():
     
     
     def save_results(self, path, fname, model = None, cv_results = None, pipe = None): 
-        """Save model and results"""
+        """
+        Save the model, cross-validation results, and pipeline to the specified directory.
+
+        Args:
+            path (str): Directory path to save the results.
+            fname (str): File name for saving the results.
+            model (optional): Trained model to save as a pickle file.
+            cv_results (optional): Cross-validation results to save as a CSV file.
+            pipe (optional): Pipeline to save as a pickle file.
+
+        Returns:
+            None
+        """
         if model is None: 
             logger.warning("Won't save any model, since its not provided")   
         else:  
@@ -171,29 +212,19 @@ class ModellingProcess():
             results_file = os.path.join(results_dir, f"{fname}_cv.csv")
             pd.DataFrame(cv_results).to_csv(results_file)
             logger.info(f"Saved CV results to {results_file}")
-            
-        # if pipe is None: 
-        #     logger.warning("Won't save any pipe, since its not provided")
-        # else:
-        #     pipe_dir = os.path.join(path, 'pipe')
-        #     os.makedirs(pipe_dir, exist_ok=True)
-        #     with open(os.path.join(pipe_dir, f"{fname}.pkl"), 'wb') as f:
-        #         pickle.dump(pipe, f)
-        #     logger.info(f"Saved pipe to {pipe_dir}")
-
-
-
-    def save_pipe(self): 
-        pass
-    
-    def load_pipe(self): 
-        pass
-    
-    def load_model(self): 
-        pass
 
     
     def _check_modelling_prerequs(self, pipeline_steps): 
+        """
+        Checks whether the necessary prerequisites for the modeling process are met (data is prepared + model exists in pipeline).
+
+        Args:
+            pipeline_steps (list): List of (name, transformer) tuples representing the steps in the pipeline.
+
+        Returns:
+            tuple: A boolean indicating if an error was found (True if an error exists), 
+                and a string message explaining the error.
+        """
         err = False
         mes = ""
         if self.X is None or self.y is None: 
@@ -205,41 +236,38 @@ class ModellingProcess():
         return err, mes
 
     def _get_config_vals(self, config): 
-            if config.get("params_cv", None) is None: 
-                logger.warning("No param grid for (nested) resampling detected - will fit model with default HPs and on complete data")
-                return None, False, False
-            if config.get('monitor', None) is None: 
-                logger.info("No additional monitoring detected")
-            return config['params_cv'], config.get('monitor', None), config.get('do_nested_resampling', True) , config.get('refit', True)
+        """
+        Extracts configuration values from the provided modelling dictionary.
+
+        Args:
+            config (dict): Configuration dictionary with keys such as 'params_cv', 'monitor', 
+                        'do_nested_resampling', and 'refit'.
+
+        Returns:
+            tuple: Contains the following extracted values:
+                - param_grid (dict or None): Parameter grid for cross-validation.
+                - monitor (object or None): Optional monitor object for early stopping.
+                - do_nested_resampling (bool): Indicates whether nested resampling should be performed.
+                - refit_hp_tuning (bool): Indicates whether to refit the model with hyperparameter tuning.
+        """
+        if config.get("params_cv", None) is None: 
+            logger.warning("No param grid for (nested) resampling detected - will fit model with default HPs and on complete data")
+            return None, False, False
+        if config.get('monitor', None) is None: 
+            logger.info("No additional monitoring detected")
+        return config['params_cv'], config.get('monitor', None), config.get('do_nested_resampling', True) , config.get('refit', True)
     
     def set_params(self, params):
+        """
+        Set attributes of the current object based on a dictionary of parameters.
+        """
         for key, value in params.items():
             setattr(self, key, value) 
-            
-            
-    def _prefix_pipeline_params(self, params, pipeline_steps):
-        """Add pipeline component prefixes to parameters if not already present"""
-        prefixed_params = {}
-        for param, value in params.items():
-            if '__' not in param:
-                # Find the relevant step in pipeline_steps
-                step_found = False
-                for step_name, _ in pipeline_steps:
-                    try:
-                        # Try setting the parameter to check if it belongs to this step
-                        self.model.named_steps[step_name].get_params()[param]
-                        prefixed_params[f"{step_name}__{param}"] = value
-                        step_found = True
-                        break
-                    except KeyError:
-                        continue
-                if not step_found:
-                    raise ValueError(f"Could not determine pipeline step for parameter: {param}")
-            else:
-                prefixed_params[param] = value
-        return prefixed_params
     
     def _set_seed(self, seed = 1234):
+        """
+        Set the random seed for NumPy, PyTorch, and scikit-learn to ensure reproducibility.
+        """
         np.random.seed(seed)
 
         # PyTorch
