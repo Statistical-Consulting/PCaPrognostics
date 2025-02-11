@@ -66,7 +66,7 @@ mp.prepare_data(DATA_CONFIG, PROJECT_ROOT)
 # Model with clin data
 pipe_steps = [('model', CatBoostModel())]
 
-# Example Config
+# -------------------------------------- Example Config
 MODEL_CONFIG = {
     'params_cv': {
         'model__iterations': [2],
@@ -83,7 +83,6 @@ MODEL_CONFIG = {
     'fname_cv' : 'test1'}
 
 mp.do_modelling(pipe_steps, MODEL_CONFIG)
-print("----------------------------------------------------------------------------")
 # ---------------------------------------------------------- Example for Autoencoder wo. clin. data
 DATA_CONFIG = {
     'use_pca': False,

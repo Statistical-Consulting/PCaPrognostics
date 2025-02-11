@@ -14,9 +14,6 @@ print(PROJECT_ROOT)
 RESULTS_DIR = os.path.join(Path(__file__).parent.resolve(), 'results_new')
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-# Imports
-from preprocessing.data_container import DataContainer
-from utils.evaluation import cindex_score
 from models.modelling_process import ModellingProcess
 from models.cox_pas_net_model import Cox_PASNet_Model
 import torch
