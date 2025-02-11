@@ -543,5 +543,26 @@ fp7 <-ggplot(best_test_results_both_cohorts_exprs_only_train_with_avg, aes(y = M
 
 
 ```
+```{r comparing mean performance of exprs based models vs pData vs both}
+test_mean_all_models <- mean(c(ov_results_cBoost$ci_coh1, ov_results_cBoost$ci_coh2, 
+                         ov_results_coxph$ci_coh1, ov_results_coxph$ci_coh2, 
+                         ov_results_DeepSurv$ci_coh1, ov_results_DeepSurv$ci_coh2, 
+                         ov_results_rsf$ci_coh1, ov_results_rsf$ci_coh2, 
+                         ov_results_coxPas$ci_coh1, ov_results_coxPas$ci_coh2, 
+                         ov_results_prio$ci_coh1, ov_results_prio$ci_coh2))
+mean_pData_results <- mean(c(ov_results_cBoost[7,]$ci_coh1,  
+                         ov_results_coxph[7,]$ci_coh1, 
+                         ov_results_DeepSurv[7,]$ci_coh1, 
+                         ov_results_rsf[7,]$ci_coh1))
+mean_exprs_results <- mean(c(ov_results_cBoost[c(1, 3, 5),]$ci_coh1,  
+                         ov_results_coxph[c(1, 3, 5),]$ci_coh1, 
+                         ov_results_DeepSurv[c(1, 3, 5),]$ci_coh1, 
+                         ov_results_rsf[c(1, 3, 5),]$ci_coh1))
+mean_exprs_pData_results <- mean(c(ov_results_cBoost[c(2, 4, 6),]$ci_coh1,  
+                         ov_results_coxph[c(2, 4, 6),]$ci_coh1, 
+                         ov_results_DeepSurv[c(2, 4, 6),]$ci_coh1, 
+                         ov_results_rsf[c(2, 4, 6),]$ci_coh1))
 
 
+
+```
