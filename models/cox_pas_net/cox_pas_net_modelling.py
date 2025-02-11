@@ -50,7 +50,7 @@ Num_EPOCHS = 15 ###for training
 ###sub-network setup
 Dropout_Rate = [0.1, 0.1]
 ''' load data and pathway '''
-pathway_mask = pd.read_csv("models/cox_pas_net/pathway_mask.csv", index_col = 0)
+pathway_mask = pd.read_csv("data/pathway_mask.csv", index_col = 0)
 
 
 # Model configuration
@@ -58,7 +58,11 @@ MODEL_CONFIG = {
     'params_cv': {
         'model__Learning_Rate': [0.01],
         'model__L2': [0], 
-        'model__Num_Epochs': [1]
+        'model__Num_Epochs': [1], 
+        'model__Num_Epochs': [10],
+        'model__dropout_rate': [0.4],
+        'model__Hidden_Nodes': [64],
+        'model__Out_Nodes': [32]
         },
     'refit': False, 
     'do_nested_resampling': True, 

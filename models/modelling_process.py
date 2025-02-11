@@ -41,7 +41,7 @@ class ModellingProcess():
         self.groups = None  # Cohort labels for cross-validation
         self.path = None  # Directory path for saving model and results
         self.fname_cv = None  # File name for saving cross-validation results
-        pass
+        
             
     def prepare_data(self, data_config, root): 
         """
