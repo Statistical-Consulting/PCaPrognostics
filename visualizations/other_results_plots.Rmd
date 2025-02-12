@@ -579,19 +579,19 @@ survival_df_cohort1 <- survival_df_cohort1 %>%
 ggplot(survival_df_cohort1, aes(x = TimePoints)) +
   geom_line(aes(y = Survival_DeepSurv_LowRisk,  color = "AE - DeepSurv Low Risk"),  linewidth = 1) +
   geom_line(aes(y = Survival_DeepSurv_HighRisk, color = "AE - DeepSurv High Risk"), linewidth = 1) +
-  geom_line(aes(y = Survival_CoxPH_LowRisk,     color = "Imp. + Clin. - CoxPH Low Risk"),     linewidth = 1) +
-  geom_line(aes(y = Survival_CoxPH_HighRisk,    color = "Imp. + Clin. - CoxPH High Risk"),    linewidth = 1) +
+  geom_line(aes(y = Survival_CoxPH_LowRisk,     color = "Common Genes + Clin. - CoxPH Low Risk"),     linewidth = 1) +
+  geom_line(aes(y = Survival_CoxPH_HighRisk,    color = "Common Genes + Clin. - CoxPH High Risk"),    linewidth = 1) +
   scale_linetype_manual(values = c(
     "AE - DeepSurv Low Risk"  = "solid",
     "AE - DeepSurv High Risk" = "dashed",
-    "Imp. + Clin. - CoxPH Low Risk"      = "dotdash",
-    "Imp. + Clin. - CoxPH High Risk"     = "dotted"
+    "Common Genes + Clin. - CoxPH Low Risk"      = "dotdash",
+    "Common Genes - CoxPH High Risk"     = "dotted"
   )) +
   scale_color_manual(values = c(
     "AE - DeepSurv Low Risk"  = "grey", 
     "AE - DeepSurv High Risk" = "green", 
-    "Imp. + Clin. - CoxPH Low Risk"     = "darkblue", 
-    "Imp. + Clin. - CoxPH High Risk"    = "blue"
+    "Common Genes + Clin. - CoxPH Low Risk"     = "darkblue", 
+    "Common Genes + Clin. - CoxPH High Risk"    = "blue"
   )) +
   labs(
     title = "Cohort 10 Survival Curves for Risk Groups and Models",
