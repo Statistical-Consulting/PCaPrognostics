@@ -23,6 +23,9 @@ The preprocessing step runs before the rest of the code and generates the necess
   Run `preprocessing.R` to preprocess the training cohorts.
 - **Additional preprocessing (if required):**  
   Run `preprocessing_2.R` to apply further preprocessing to test cohorts and ProstaTrend-FFPE scores.
+- **Dimensionality reduction:**
+  1. Run the `generate_autoencoder.ipynb` in Google Colab (link in 'pretrained_models_ae/generate_autoencoder.ipynb')
+  2. Download the 'csv', 'csv_eval' and 'models'-folders from this notebook into the 'pretrained_models_ae'-folder of this repository
 
 ### 3. Running the Models
 There are two types of model implementations in this repository:
@@ -42,7 +45,7 @@ DeepSurv and Cox-PASNet are not included in this repository’s folder structure
 
 To use these models:
 1. Open the respective Google Colab notebook.
-2. Upload the necessary files (for tuning, training, or evaluation) into the Colab `content` folder.
+2. Upload the necessary files (for tuning, training, or evaluation) into the Colab `content` pane.
 3. Execute the required code chunks according to the instructions provided in the notebook’s comments.
 
 ---
