@@ -32,7 +32,7 @@ There are two types of model implementations in this repository. Some models are
 
 #### Models implemented in Python:
 1. Nested resampling, model tuning and final model training in the `<model_name>_modelling.py`-files:
-    - To load the preferred dataset, adapt the `DATA_CONFIG`:
+    - To load the preferred dataset, adapt the `DATA_CONFIG` accordingly:
       ```python
           DATA_CONFIG = {
           'use_pca': False,         # Experimental feature, does PCA on the gene data; not recommended to use during modelling process
@@ -46,7 +46,7 @@ There are two types of model implementations in this repository. Some models are
           'clinical_covs': ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA']  # Clinical variables to be used; remove if no clinical data is wanted
       }
       ```
-    - To use the preferred modelling config, adapt the `MODEL_CONFIG`:
+    - To use the preferred modelling config, adapt the `MODEL_CONFIG` accordingly:
         ``` python
         MODEL_CONFIG = {
         'params_cv':{                 # Parameter grid for hyperparameter tuning; Needs `model__`-prefix
@@ -75,7 +75,7 @@ There are two types of model implementations in this repository. Some models are
     
 #### Models implemnted in R
 1. Modelling Process in the `<model_name>_modelling.R`-files
-    - To load the wanted data set, set:
+    - To load the wanted data set, set these variable accordingly:
       ``` r
       use_aenc = TRUE   # if latent space from AE is to be used
       use_inter = FALSE # if gene data in general is to be used
