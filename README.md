@@ -23,7 +23,7 @@ The preprocessing step runs before the rest of the code and generates the necess
   Run `preprocessing.R` to preprocess the training cohorts.
 - **Additional preprocessing (if required):**  
   Run `preprocessing_2.R` to apply further preprocessing to test cohorts and ProstaTrend-FFPE scores.
--**Dimensionality reduction:**
+- **Dimensionality reduction:**
   1. Run the `generate_autoencoder.ipynb` in Google Colab (link respective file in this repository)
   2. Download the 'csv', 'csv_eval' and 'models'-folders from this notebook into the 'pretrained_models_ae'-folder of this repository
 
