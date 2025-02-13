@@ -20,7 +20,7 @@ ov_results_coxph <- as.data.frame(read_csv('../results_modelling_ovs/ov_coxph.cs
 ov_results_DeepSurv <- as.data.frame(read_csv('../results_modelling_ovs/ov_DeepSurv.csv', lazy = TRUE))
 ov_results_prio <- as.data.frame(read_csv('../results_modelling_ovs/ov_prio.csv', lazy = TRUE))
 ov_results_rsf <- as.data.frame(read_csv('../results_modelling_ovs/ov_rsf.csv', lazy = TRUE))
-
+splits_results_score <- as.data.frame(read_csv('../results_modelling_splits/splits_score_cindices.csv', lazy = TRUE))
 ordered_datasets <- c("AutoEncoder", "pData_AutoEncoder", "Imputed", "pData_Imputed", "Intersection", "pData_Intersection", "pData")
 # Reorder the dataset column and sort the data frame accordingly
 ov_results_cBoost <- ov_results_cBoost %>%
@@ -230,8 +230,10 @@ best_test_results_both_cohorts_test_exprs_only_with_avg <- add_average_rows(best
 
 ```{r create reference lines}
 #average of the ffpe score on cohorts 1-9 (manually added)
-mean_ffpe_score <- 0.701
-weighted_mean_ffpe_score <- 0.698
+mean_ffpe_score <- mean(splits_results_score$c_index)
+weighted_mean_ffpe_score <- splits_results_score %>%
+  summarise(weighted_mean = sum(c_index * n_patients) / sum(n_patients)) %>%
+  pull(weighted_mean)
 best_training_means <- mean(max(ov_results_cBoost$mean), max(ov_results_coxPas$mean), max(ov_results_coxph$mean, max(ov_results_DeepSurv$mean), max(ov_results_rsf$mean), max(ov_results_prio$mean)))
 #mean of all the tst performances of all models
 test_mean_all_models <- mean(c(ov_results_cBoost$ci_coh1, ov_results_cBoost$ci_coh2, 
