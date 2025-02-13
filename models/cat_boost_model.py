@@ -9,7 +9,8 @@ from sklearn.base import BaseEstimator, RegressorMixin
 
 class CatBoostModel(BaseEstimator, RegressorMixin): 
     """
-    A custom CatBoost-based survival analysis model compatible with scikit-learn.
+    A custom CatBoost-based survival analysis model compatible with the scikit-learn interface/API; 
+    Thus allows to be included in sklearn pipelines etc.
 
     Args:
         cat_features (list, optional): List of categorical feature column names. Default is ['TISSUE'].
