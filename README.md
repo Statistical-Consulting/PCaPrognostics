@@ -49,11 +49,11 @@ In addition some models are implemnted in Python, some in R.
         'use_cohorts': False, # Wether to return a dict of seperate cohort csvs; not combinable with modelling process
         'requires_ohenc' : False, # Wether categorical data requires One-Hot-encoding; Only relevant if `clinical covs` is specified
         'only_pData': False, # Wether to only return clinical data
-        'clinical_covs' : ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'] # clinical variables to be used; remove if no clini. Data is wanted
+        'clinical_covs' : ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'] # clinical variables to be used; Remove if no clini. Data is wanted
         }`
     - To use the preferred modelling config, adapt the `MODEL_CONFIG`:
         `MODEL_CONFIG = {
-        'params_cv':{ # param grid for hyperparameter tuning --> needs `model__`-prefix
+        'params_cv':{ # param grid for hyperparameter tuning; Needs `model__`-prefix
         'model__iterations': [2],
         'model__learning_rate': [0.1],
         'model__depth': [10],
@@ -67,7 +67,7 @@ In addition some models are implemnted in Python, some in R.
 2. Analysis of results via the `<model_name>_analysis.py`-files: Make sure that a `results/model` (containing final models) and a `results/results (containing .csv-files from nested resampling) folder exists within model folder
 3. Implemented models:
     - GBoost `models/cat_boost`: Modelling runs locally
-    - DeepSurv `models/deep_surv`: Modelling runs only runs in provided Google Colab Notebooks (due to computational reasons)
+    - DeepSurv `models/deep_surv`: Modelling runs only runs in provided Google Colab Notebooks
     - CoxPN `models/cox_pas_net`:
       1. Run `create_pathways.R` to create pathway mask
       2. Modelling runs locally (not recommended) or again in provided Google Colab Notebooks
