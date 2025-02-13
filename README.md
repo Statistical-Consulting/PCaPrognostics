@@ -33,7 +33,36 @@ There are two types of model implementations in this repository. Some models are
 ##### Models implemented in Python:
 1. Nested resampling, model tuning and final model training in the `<model_name>_modelling.py`-files:
     - To load the preferred dataset, adapt the `DATA_CONFIG`:
-        <pre> ```python DATA_CONFIG = { 'use_pca': False, # Experimental feature, does PCA on the gene data; not recommended to use during modelling process 'pca_threshold': 0.85, # Only relevant if use_pca == True 'gene_type': ('intersection', 'common_genes', 'all_genes'), # Gene data to be loaded 'use_imputed': True, # Whether imputed data is to be returned or data with NAs for missing values 'select_random': False, # Experimental feature, selects a random subset of the gene data; not recommended to use during modelling process 'use_cohorts': False, # Whether to return a dict of separate cohort CSVs; not combinable with modelling process 'requires_ohenc': False, # Whether categorical data requires One-Hot encoding; Only relevant if `clinical covs` is specified 'only_pData': False, # Whether to only return clinical data 'clinical_covs': ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'] # Clinical variables to be used; remove if no clinical data is wanted } ``` </pre>
+```python
+DATA_CONFIG = {
+    'use_pca': False,  
+    # Experimental feature, does PCA on the gene data; not recommended to use during modelling process
+
+    'pca_threshold': 0.85,  
+    # Only relevant if use_pca == True
+
+    'gene_type': ('intersection', 'common_genes', 'all_genes'),  
+    # Gene data to be loaded
+
+    'use_imputed': True,  
+    # Whether imputed data is to be returned or data with NAs for missing values
+
+    'select_random': False,  
+    # Experimental feature, selects a random subset of the gene data; not recommended to use during modelling process
+
+    'use_cohorts': False,  
+    # Whether to return a dict of separate cohort CSVs; not combinable with modelling process
+
+    'requires_ohenc': False,  
+    # Whether categorical data requires One-Hot encoding; Only relevant if `clinical covs` is specified
+
+    'only_pData': False,  
+    # Whether to only return clinical data
+
+    'clinical_covs': ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA']  
+    # Clinical variables to be used; remove if no clinical data is wanted
+}
+```
     - To use the preferred modelling config, adapt the `MODEL_CONFIG`:
         `MODEL_CONFIG = {
         'params_cv':{ # param grid for hyperparameter tuning; Needs `model__`-prefix
