@@ -82,7 +82,7 @@ There are two types of model implementations in this repository. Some models are
       use_exprs = FALSE # if intersection data is to be used --> if FALSE & use_inter then imputed/common genes are used
       use_pData = FALSE # if clinical data is used
       vars_pData = c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA')
-```
+      ```
 3. Analysis of results via the `<model_name>_analysis.R`-files: Make sure that a `results/model` (containing final models) and a `results/results (containing .csv-files from nested resampling) folder exists within model folder
 4. Implemented models:
     - CoxPH `models/pen_cox`: Modelling runs locally
