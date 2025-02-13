@@ -28,14 +28,11 @@ The preprocessing step runs before the rest of the code and generates the necess
   2. Download the 'csv', 'csv_eval' and 'models'-folders from this notebook into the 'pretrained_models_ae'-folder of this repository
 
 ### 3. Running the Models
-There are two types of model implementations in this repository:
-
-#### **📌 Models Implemented Within This Repository**
-Some models are fully implemented within the repository’s local structure, whereas others only run on Google Colab to thus take advantage of GPU resources. To use these models:
+There are two types of model implementations in this repository. Some models are fully implemented within the repository’s local structure, whereas others only run on Google Colab to thus take advantage of GPU resources. To use these models:
 1. Open the respective Google Colab notebook.
 2. Upload the necessary files (for tuning, training, or evaluation) into the Colab `content` pane.
 3. Execute the required code chunks according to the instructions provided in the notebook’s comments.
-In addition some models are implemnted in Python, some in R.
+In addition some models are implemented in Python, some in R.
 
 ##### Models implemented in Python:
 1. Nested resampling, model tuning and final model training in the `<model_name>_modelling.py`-files:
