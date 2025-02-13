@@ -132,7 +132,7 @@ prepare_data <- function(use_exprs, use_inter, use_pData, use_aenc = FALSE, vars
 use_aenc = FALSE # if latent space from AE is to be used
 use_inter = FALSE # if gene data in general is to be used
 use_exprs = TRUE # if intersection data is to be used --> if FALSE & use_inter then imputed/common genes are used
-use_pData = FALSE # if clinical data is used
+use_pData = TRUE # if clinical data is used
 vars_pData = c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA')
 
 data_cmplt = prepare_data(use_exprs, use_inter, use_pData, use_aenc, vars_pData)
@@ -184,7 +184,7 @@ outer_cindex_min <- apply(test_preds_min, 2, glmnet::Cindex, y=y_test_outer)
 outer_perf[i, ] <- c(test_cohort, outer_cindex_se, outer_cindex_min)
 }
 
-write.csv(outer_perf, "final_imp.csv")
+write.csv(outer_perf, "final_imp_pData.csv")
 
 # # --------------------------------------------------------------- Tuning + fitting of final model
 if (use_aenc){
@@ -197,7 +197,7 @@ if (use_aenc){
   data_cmplt <- as.data.frame(data_cmplt %>% select(-c(X)))
   final_model <- do_resampling(data_cmplt, candidate_alphas, use_pData)
 }
-save(final_model,file="final_imp.Rdata")
+save(final_model,file="final_imp_pData.Rdata")
 
 # ------------------------------------------------------------- 
 # library(survival)

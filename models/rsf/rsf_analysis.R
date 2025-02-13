@@ -10,6 +10,7 @@ library(readr)
 library(rsample)
 library(purrr)
 library(SurvMetrics)
+library(pec)
 
 #' @description Loads and combines performance results from CSV files
 #' @param results_path (str): Path to the directory containing CSV result files.
@@ -69,7 +70,7 @@ combine_results <- function(results_nstd, results_test){
 #' @param final_model A trained rsf model.
 #' @return A data frame containing non-zero feature vimps
 load_feat_imp <- function(final_model){
-    vimp_rsf <- vimp(final_model, block.size="ntree", importance="anti")
+    vimp_rsf <- vimp(final_model, block.size="ntree", importance="permute")
     feature_imp = vimp_rsf$importance
 
     importance_df <- data.frame(
@@ -111,7 +112,7 @@ feat_imp_all_models <- function(model_path){
 
         imps <- load_feat_imp(final_model)
         imps$dataset <- dataset
-        imps$model <- 'RSF'
+        imps$model_class <- 'RSF'
         return(imps)
         }
 
@@ -213,6 +214,19 @@ test_perf_all_models <- function(model_path){
 
         # Join non-empty components with "_" as a separator
         dataset <- paste(components, collapse = "_")
+        models <- list("RF" = final_model)
+
+        # Evaluate prediction error curves over a time range
+        pec_results1 <- pec(object = models,
+                        formula = Surv(MONTH_TO_BCR, BCR_STATUS) ~ 1,
+                        data = data_co1,
+                        times = seq(0, max(data_co2$MONTH_TO_BCR), by = 10))
+        print(pec_results1)
+        pec_results2 <- pec(object = models,
+                        formula = Surv(MONTH_TO_BCR, BCR_STATUS) ~ 1,
+                        data = data_co2,
+                        times = seq(0, max(data_co2$MONTH_TO_BCR), by = 10))
+        print(pec_results2)
 
         perf[i, ] <- c(gsub(".Rdata", "", file), 'RSF', dataset, cindex1, cindex2)
     }
@@ -222,23 +236,23 @@ test_perf_all_models <- function(model_path){
 
 # ------------------------------------------------------------------------------------------------------------------
 # --------------------- load and inspect performance
-results_path_nstd <- "models\\rsf\\results\\results"
-combined_results_nstd <- load_all_results(results_path = results_path_nstd)
-split_results_path <- 'results_modelling_splits\\splits_rsf.csv'
-write.csv(combined_results_nstd, split_results_path)
+# results_path_nstd <- "models\\rsf\\results\\results"
+# combined_results_nstd <- load_all_results(results_path = results_path_nstd)
+# split_results_path <- 'results_modelling_splits\\splits_rsf.csv'
+# write.csv(combined_results_nstd, split_results_path)
 
 
-combined_results_aggr <- aggregate_results(combined_results_nstd)
-print(combined_results_aggr)
+# combined_results_aggr <- aggregate_results(combined_results_nstd)
+# print(combined_results_aggr)
 
-# --------------------- Get test performances
-test_perf <- test_perf_all_models("models\\rsf\\results\\model")
-final_results <- combine_results(combined_results_aggr, test_perf)
+# # --------------------- Get test performances
+# test_perf <- test_perf_all_models("models\\rsf\\results\\model")
+# final_results <- combine_results(combined_results_aggr, test_perf)
 
-final_results_path <- 'results_modelling_ovs\\ov_rsf.csv'
-write.csv(final_results, final_results_path)
+# final_results_path <- 'results_modelling_ovs\\ov_rsf.csv'
+# write.csv(final_results, final_results_path)
 
-# feat_imps <- feat_imp_all_models("models\\rsf\\results\\model")
-# print(feat_imps)
-# feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_rsf_anti.csv'
-# write.csv(feat_imps, feat_imp_path)
+feat_imps <- feat_imp_all_models("models\\rsf\\results\\model")
+print(feat_imps)
+feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_rsf.csv'
+write.csv(feat_imps, feat_imp_path)

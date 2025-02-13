@@ -296,6 +296,10 @@ test_perf_all_models <- function(model_path){
             cut = c(6, 64))
             data <- data %>% select(-c(ID))
             data$gleason_tstart <- scale(data$GLEASON_SCORE * data$tstart)
+
+            tstart_c <- scale(data$tstart, center = TRUE, scale = TRUE)
+            gleason_c <- scale(data$GLEASON_SCORE, center = TRUE, scale = TRUE)
+            data$gleason_tstart <- tstart_c * gleason_c
         }
         else {
             MONTH_TO_BCR <- df_pData$MONTH_TO_BCR
@@ -420,7 +424,7 @@ test_prop_hazards <- function(model_path, adjusted){
 results_path_nstd <- "models\\pen_cox\\results_final\\results"
 combined_results_nstd <- load_all_results(results_path = results_path_nstd)
 split_results_path <- 'results_modelling_splits\\splits_coxph.csv'
-#write.csv(combined_results_nstd, split_results_path)
+write.csv(combined_results_nstd, split_results_path)
 combined_results_aggr <- aggregate_results(combined_results_nstd)
 print(combined_results_aggr)
 
@@ -430,13 +434,13 @@ print(test_perf)
 final_results <- combine_results(combined_results_aggr, test_perf)
 print(final_results)
 final_results_path <- 'results_modelling_ovs\\ov_coxph.csv'
-#write.csv(final_results, final_results_path)
+write.csv(final_results, final_results_path)
 
 feat_imps <- feat_imp_all_models("models\\pen_cox\\results_final\\model")
 print(feat_imps)
 feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_pencox.csv'
-# #write.csv(feat_imps, feat_imp_path)
+write.csv(feat_imps, feat_imp_path)
 
 
-ps <- test_prop_hazards("models\\pen_cox\\results_final\\model", adjusted = TRUE)
-print(ps)
+#ps <- test_prop_hazards("models\\pen_cox\\results_final\\model", adjusted = TRUE)
+#print(ps)
