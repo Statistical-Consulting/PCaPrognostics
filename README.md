@@ -31,10 +31,15 @@ The preprocessing step runs before the rest of the code and generates the necess
 There are two types of model implementations in this repository:
 
 #### **📌 Models Implemented Within This Repository**
-Some models are fully implemented within the repository’s local structure. These models automatically access the preprocessed CSV files.
-1. Models implemented in Python:
-   1. Modelling Process in the `<model_name>_modelling.py`-files:
-      - To load the correct dataset, adapt the `DATA_CONFIG`:
+Some models are fully implemented within the repository’s local structure, whereas others only run on Google Colab to thus take advantage of GPU resources. To use these models:
+1. Open the respective Google Colab notebook.
+2. Upload the necessary files (for tuning, training, or evaluation) into the Colab `content` pane.
+3. Execute the required code chunks according to the instructions provided in the notebook’s comments.
+In addition some models are implemnted in Python, some in R.
+
+##### Models implemented in Python:
+1. Modelling Process in the `<model_name>_modelling.py`-files:
+  - To load the correct dataset, adapt the `DATA_CONFIG`:
         `DATA_CONFIG = {
         'use_pca': False, # Experimental feautre, does PCA on the gene data; not recommended to use during modelling process
         'pca_threshold': 0.85, # Only relevant if use_pca == True
@@ -46,7 +51,7 @@ Some models are fully implemented within the repository’s local structure. The
         'only_pData': False, # Wether to only return clinical data
         'clinical_covs' : ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'] # clinical variables to be used; remove if no clini. Data is wanted
         }`
-      - To use the correct modelling config, adapt the `MODEL_CONFIG`:
+  - To use the correct modelling config, adapt the `MODEL_CONFIG`:
         `MODEL_CONFIG = {
         'params_cv':{ # param grid for hyperparameter tuning --> needs `model__`-prefix
         'model__iterations': [2],
@@ -59,24 +64,30 @@ Some models are fully implemented within the repository’s local structure. The
         'path' : RESULTS_DIR, # path to save the results to, ideally `results` within the model folder
         'fname_cv' : 'test' # filename for results (both model and nested resampling results)
         }`
-   2. For analysis, make sure that a `results/model` (containing final models) and a `results/results (containing .csv-files from nested resampling) folder exists within model folder
-   3. Implemented models: 
-      - GBoost `models/cat_boost`: Modelling can be done locally
-      - DeepSurv `models/deep_surv`: Modelling can only be done in provided Google Colab Notebooks (due to computational reasons)
-      - CoxPN `models/cox_pas_net`: Modelling can be either done locally (not recommended) or again in provided Google Colab Notebooks
+2. Analysis of results via the `<model_name>_analysis.py`-files: Make sure that a `results/model` (containing final models) and a `results/results (containing .csv-files from nested resampling) folder exists within model folder
+3. Implemented models:
+  - GBoost `models/cat_boost`: Modelling runs locally
+  - DeepSurv `models/deep_surv`: Modelling runs only runs in provided Google Colab Notebooks (due to computational reasons)
+  - CoxPN `models/cox_pas_net`:
+    1. Run `create_pathways.R` to create pathway mask
+    2. Modelling runs locally (not recommended) or again in provided Google Colab Notebooks
     
-2. Models implemnted in R:
-   - CoxPH `models/pen_cox`:
-     1. For model fitting and nested resampling run `pen_cox_modelling.R`
-     2. For results analysis run `pen_cox_analysis.R`
-   - RSF `models/rsf`:
-     1. For model fitting and nested resampling run `rsf_modelling.R`
-     2. For results analysis run `rsf_analysis.R`
+##### Models implemnted in R:
+1. Modelling Process in the `<model_name>_modelling.R`-files
+   - To load the wanted data set, set:
+use_aenc = TRUE # if latent space from AE is to be used
+use_inter = FALSE # if gene data in general is to be used
+use_exprs = FALSE # if intersection data is to be used --> if FALSE & use_inter then imputed/common genes are used
+use_pData = FALSE # if clinical data is used
+vars_pData = c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA')
+2. Analysis of results via the `<model_name>_analysis.R`-files: Make sure that a `results/model` (containing final models) and a `results/results (containing .csv-files from nested resampling) folder exists within model folder
+3. Implemented models: 
+   - CoxPH `models/pen_cox`: Modelling runs locally
+   - RSF `models/rsf`: Modelling runs locally
    - PrioLasso `models/prio_lasso`:
      1. Execute the `create_blocks.py`, save the resulting block structure into the `prio_lasso/`-folder
      2. Modify the paths for `df_blockwise_data` and `df_blockwise_indcs` in `priority_lasso_modelling.r` and `priority_lasso_analysis.R`
-     3. For model fitting and nested resampling run `priority_lasso_modelling.R`
-     4. For results analysis run `priority_lasso_analysis.R`
+     3. Modelling runs locally
 
 To use them:
 1. Define the datasets to be used as input.
@@ -86,12 +97,7 @@ To use them:
 📌 *TBD: How to evaluate new data on a model*
 
 #### **📌 Models Implemented in Google Colab (DeepSurv & Cox-PASNet)**
-DeepSurv and Cox-PASNet are not included in this repository’s folder structure. Instead, they are implemented in Google Colab notebooks to take advantage of GPU performance.
 
-To use these models:
-1. Open the respective Google Colab notebook.
-2. Upload the necessary files (for tuning, training, or evaluation) into the Colab `content` pane.
-3. Execute the required code chunks according to the instructions provided in the notebook’s comments.
 
 ---
 
