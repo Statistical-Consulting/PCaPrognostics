@@ -65,7 +65,7 @@ splits_best_cBoost <- subset_splits_results_cBoost %>%
 # coxph load and filter and find best dataset
 splits_results_coxph <- as.data.frame(read_csv('../results_modelling_splits/splits_coxph.csv', lazy = TRUE))
 subset_splits_results_coxph <- splits_results_coxph %>%
-  filter(dataset %in% c("AutoEncoder","Intersection", "Imputed"))
+  filter(dataset %in% c("AutoEncoder", "Intersection", "Imputed"))
 splits_best_coxph <- subset_splits_results_coxph %>%
   group_by(test_cohort) %>%
   slice_max(order_by = ci, n = 1) %>% 
