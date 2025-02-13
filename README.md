@@ -38,8 +38,8 @@ Some models are fully implemented within the repository’s local structure, whe
 In addition some models are implemnted in Python, some in R.
 
 ##### Models implemented in Python:
-1. Modelling Process in the `<model_name>_modelling.py`-files:
-  - To load the correct dataset, adapt the `DATA_CONFIG`:
+1. Nested resampling, model tuning and final model training in the `<model_name>_modelling.py`-files:
+    - To load the preferred dataset, adapt the `DATA_CONFIG`:
         `DATA_CONFIG = {
         'use_pca': False, # Experimental feautre, does PCA on the gene data; not recommended to use during modelling process
         'pca_threshold': 0.85, # Only relevant if use_pca == True
@@ -51,7 +51,7 @@ In addition some models are implemnted in Python, some in R.
         'only_pData': False, # Wether to only return clinical data
         'clinical_covs' : ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'] # clinical variables to be used; remove if no clini. Data is wanted
         }`
-  - To use the correct modelling config, adapt the `MODEL_CONFIG`:
+    - To use the preferred modelling config, adapt the `MODEL_CONFIG`:
         `MODEL_CONFIG = {
         'params_cv':{ # param grid for hyperparameter tuning --> needs `model__`-prefix
         'model__iterations': [2],
@@ -66,38 +66,28 @@ In addition some models are implemnted in Python, some in R.
         }`
 2. Analysis of results via the `<model_name>_analysis.py`-files: Make sure that a `results/model` (containing final models) and a `results/results (containing .csv-files from nested resampling) folder exists within model folder
 3. Implemented models:
-  - GBoost `models/cat_boost`: Modelling runs locally
-  - DeepSurv `models/deep_surv`: Modelling runs only runs in provided Google Colab Notebooks (due to computational reasons)
-  - CoxPN `models/cox_pas_net`:
-    1. Run `create_pathways.R` to create pathway mask
-    2. Modelling runs locally (not recommended) or again in provided Google Colab Notebooks
+    - GBoost `models/cat_boost`: Modelling runs locally
+    - DeepSurv `models/deep_surv`: Modelling runs only runs in provided Google Colab Notebooks (due to computational reasons)
+    - CoxPN `models/cox_pas_net`:
+      1. Run `create_pathways.R` to create pathway mask
+      2. Modelling runs locally (not recommended) or again in provided Google Colab Notebooks
     
-##### Models implemnted in R:
+##### Models implemnted in R
 1. Modelling Process in the `<model_name>_modelling.R`-files
-   - To load the wanted data set, set:
+    - To load the wanted data set, set:
 use_aenc = TRUE # if latent space from AE is to be used
 use_inter = FALSE # if gene data in general is to be used
 use_exprs = FALSE # if intersection data is to be used --> if FALSE & use_inter then imputed/common genes are used
 use_pData = FALSE # if clinical data is used
 vars_pData = c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA')
-2. Analysis of results via the `<model_name>_analysis.R`-files: Make sure that a `results/model` (containing final models) and a `results/results (containing .csv-files from nested resampling) folder exists within model folder
-3. Implemented models: 
-   - CoxPH `models/pen_cox`: Modelling runs locally
-   - RSF `models/rsf`: Modelling runs locally
-   - PrioLasso `models/prio_lasso`:
+3. Analysis of results via the `<model_name>_analysis.R`-files: Make sure that a `results/model` (containing final models) and a `results/results (containing .csv-files from nested resampling) folder exists within model folder
+4. Implemented models:
+    - CoxPH `models/pen_cox`: Modelling runs locally
+    - RSF `models/rsf`: Modelling runs locally
+    - PrioLasso `models/prio_lasso`:
      1. Execute the `create_blocks.py`, save the resulting block structure into the `prio_lasso/`-folder
      2. Modify the paths for `df_blockwise_data` and `df_blockwise_indcs` in `priority_lasso_modelling.r` and `priority_lasso_analysis.R`
      3. Modelling runs locally
-
-To use them:
-1. Define the datasets to be used as input.
-2. Configure the model hyperparameter grid for tuning or specify the exact parameters for training.
-3. The results from nested resampling or the trained model are automatically stored.
-
-📌 *TBD: How to evaluate new data on a model*
-
-#### **📌 Models Implemented in Google Colab (DeepSurv & Cox-PASNet)**
-
 
 ---
 
