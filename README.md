@@ -32,6 +32,19 @@ There are two types of model implementations in this repository:
 
 #### **📌 Models Implemented Within This Repository**
 Some models are fully implemented within the repository’s local structure. These models automatically access the preprocessed CSV files.
+1. Models implemented in Python:
+2. Models implemnted in R:
+   - CoxPH `models/pen_cox`:
+     1. For model fitting and nested resampling run `pen_cox_modelling.R`
+     2. For results analysis run `pen_cox_analysis.R`
+   - RSF `models/rsf`:
+     1. For model fitting and nested resampling run `rsf_modelling.R`
+     2. For results analysis run `rsf_analysis.R`
+   - PrioLasso `models/prio_lasso`:
+     1. Execute the `create_blocks.py, save the resulting block structure into the `prio_lasso/`-folder
+     2. Modify the paths for `df_blockwise_data` and `df_blockwise_indcs` in `priority_lasso_modelling.r` and `priority_lasso_analysis.R`
+     3. For model fitting and nested resampling run `priority_lasso_modelling.R`
+     4. For results analysis run `priority_lasso_analysis.R`
 
 To use them:
 1. Define the datasets to be used as input.
