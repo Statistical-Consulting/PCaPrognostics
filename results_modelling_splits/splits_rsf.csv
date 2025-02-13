@@ -1,4 +1,4 @@
-"","test_cohort","ci","model","dataset","model_class"
+"","testing_cohort","ci","model","dataset","model_class"
 "1","CamCap_2016_Ross_Adams",0.811020960108181,"rsf_autoencoder_paper","AutoEncoder","RSF"
 "2","Atlanta_2014_Long",0.645022883295195,"rsf_autoencoder_paper","AutoEncoder","RSF"
 "3","Stockholm_2016_Ross_Adams",0.639123102866779,"rsf_autoencoder_paper","AutoEncoder","RSF"
