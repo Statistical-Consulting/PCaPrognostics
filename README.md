@@ -30,7 +30,7 @@ The preprocessing step runs before the rest of the code and generates the necess
 ### 3. Running the Models
 There are two types of model implementations in this repository. Some models are implemented in R, some in Python. In additon, some Python Models only run locally, whereas others con (only) be executed in Google Colab. 
 
-##### Models implemented in Python:
+#### Models implemented in Python:
 1. Nested resampling, model tuning and final model training in the `<model_name>_modelling.py`-files:
     - To load the preferred dataset, adapt the `DATA_CONFIG`:
       ```python
@@ -73,7 +73,7 @@ There are two types of model implementations in this repository. Some models are
       2. Upload the necessary files (for tuning, training, or evaluation) into the Colab `content` pane.
       3. Execute the required code chunks according to the instructions provided in the notebook’s comments.
     
-##### Models implemnted in R
+#### Models implemnted in R
 1. Modelling Process in the `<model_name>_modelling.R`-files
     - To load the wanted data set, set:
       ``` r
@@ -88,9 +88,9 @@ There are two types of model implementations in this repository. Some models are
     - CoxPH `models/pen_cox`: Modelling runs locally
     - RSF `models/rsf`: Modelling runs locally
     - PrioLasso `models/prio_lasso`:
-     1. Execute the `create_blocks.py`, save the resulting block structure into the `prio_lasso/`-folder
-     2. Modify the paths for `df_blockwise_data` and `df_blockwise_indcs` in `priority_lasso_modelling.r` and `priority_lasso_analysis.R`
-     3. Modelling runs locally
+       1. Execute the `create_blocks.py`, save the resulting block structure into the `prio_lasso/`-folder
+       2. Modify the paths for `df_blockwise_data` and `df_blockwise_indcs` in `priority_lasso_modelling.r` and `priority_lasso_analysis.R`
+       3. Modelling runs locally
 
 ---
 
