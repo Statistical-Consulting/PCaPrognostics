@@ -35,48 +35,32 @@ There are two types of model implementations in this repository. Some models are
     - To load the preferred dataset, adapt the `DATA_CONFIG`:
       ```python
           DATA_CONFIG = {
-          'use_pca': False,  
-          # Experimental feature, does PCA on the gene data; not recommended to use during modelling process
-      
-          'pca_threshold': 0.85,  
-          # Only relevant if use_pca == True
-      
-          'gene_type': ('intersection', 'common_genes', 'all_genes'),  
-          # Gene data to be loaded
-      
-          'use_imputed': True,  
-          # Whether imputed data is to be returned or data with NAs for missing values
-      
-          'select_random': False,  
-          # Experimental feature, selects a random subset of the gene data; not recommended to use during modelling process
-      
-          'use_cohorts': False,  
-          # Whether to return a dict of separate cohort CSVs; not combinable with modelling process
-      
-          'requires_ohenc': False,  
-          # Whether categorical data requires One-Hot encoding; Only relevant if `clinical covs` is specified
-      
-          'only_pData': False,  
-          # Whether to only return clinical data
-      
-          'clinical_covs': ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA']  
-          # Clinical variables to be used; remove if no clinical data is wanted
+          'use_pca': False,         # Experimental feature, does PCA on the gene data; not recommended to use during modelling process
+          'pca_threshold': 0.85,    # Only relevant if use_pca == True
+          'gene_type': ('intersection', 'common_genes', 'all_genes'),  # Gene data to be loaded
+          'use_imputed': True,      # Whether imputed data is to be returned or data with NAs for missing values
+          'select_random': False,   # Experimental feature, selects a random subset of the gene data; not recommended to use during modelling process
+          'use_cohorts': False,     # Whether to return a dict of separate cohort CSVs; not combinable with modelling process
+          'requires_ohenc': False,  # Whether categorical data requires One-Hot encoding; Only relevant if `clinical covs` is specified
+          'only_pData': False,      # Whether to only return clinical data
+          'clinical_covs': ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA']  # Clinical variables to be used; remove if no clinical data is wanted
       }
       ```
     - To use the preferred modelling config, adapt the `MODEL_CONFIG`:
         ``` python
         MODEL_CONFIG = {
-        'params_cv':{ # param grid for hyperparameter tuning; Needs `model__`-prefix
-        'model__iterations': [2],
-        'model__learning_rate': [0.1],
-        'model__depth': [10],
-        'model__min_data_in_leaf': [10],
+        'params_cv':{                 # Parameter grid for hyperparameter tuning; Needs `model__`-prefix
+          'model__iterations': [2],
+          'model__learning_rate': [0.1],
+          'model__depth': [10],
+          'model__min_data_in_leaf': [10],
         },
-        'refit': True, # Wether a final model is to be tuned and fitted
+        'refit': True,                 # Wether a final model is to be tuned and fitted
         'do_nested_resampling': True,  # Wether nested resampling should be done
-        'path' : RESULTS_DIR, # path to save the results to, ideally `results` within the model folder
-        'fname_cv' : 'test' # filename for results (both model and nested resampling results)
-        }```
+        'path' : RESULTS_DIR,          # Path to save the results to, ideally `results` within the model folder
+        'fname_cv' : 'test'            # Filename for results (both model and nested resampling results)
+        }
+        ```
 2. Analysis of results via the `<model_name>_analysis.py`-files: Make sure that a `results/model` (containing final models) and a `results/results (containing .csv-files from nested resampling) folder exists within model folder
 3. Implemented models:
     - GBoost `models/cat_boost`: Modelling runs locally
@@ -92,11 +76,13 @@ There are two types of model implementations in this repository. Some models are
 ##### Models implemnted in R
 1. Modelling Process in the `<model_name>_modelling.R`-files
     - To load the wanted data set, set:
-use_aenc = TRUE # if latent space from AE is to be used
-use_inter = FALSE # if gene data in general is to be used
-use_exprs = FALSE # if intersection data is to be used --> if FALSE & use_inter then imputed/common genes are used
-use_pData = FALSE # if clinical data is used
-vars_pData = c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA')
+      ``` r
+      use_aenc = TRUE   # if latent space from AE is to be used
+      use_inter = FALSE # if gene data in general is to be used
+      use_exprs = FALSE # if intersection data is to be used --> if FALSE & use_inter then imputed/common genes are used
+      use_pData = FALSE # if clinical data is used
+      vars_pData = c("AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA')
+```
 3. Analysis of results via the `<model_name>_analysis.R`-files: Make sure that a `results/model` (containing final models) and a `results/results (containing .csv-files from nested resampling) folder exists within model folder
 4. Implemented models:
     - CoxPH `models/pen_cox`: Modelling runs locally
