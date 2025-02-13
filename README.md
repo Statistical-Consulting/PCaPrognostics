@@ -35,13 +35,21 @@ There are two types of model implementations in this repository. Some models are
     - To load the preferred dataset, adapt the `DATA_CONFIG`:
         `DATA_CONFIG = {
         'use_pca': False, # Experimental feautre, does PCA on the gene data; not recommended to use during modelling process
+      
         'pca_threshold': 0.85, # Only relevant if use_pca == True
-        'gene_type': ('intersection', 'common_genes', 'all_genes'), # gene data to be loaded 
+      
+        'gene_type': ('intersection', 'common_genes', 'all_genes'), # gene data to be loaded
+      
         'use_imputed': True, # wether imputed data is to be returend or data with NA`s for missing values
+      
         'select_random' : False, # Experimental feature, selects a random subset of the gene data; not recommended to use during modelling process
+      
         'use_cohorts': False, # Wether to return a dict of seperate cohort csvs; not combinable with modelling process
+      
         'requires_ohenc' : False, # Wether categorical data requires One-Hot-encoding; Only relevant if `clinical covs` is specified
+      
         'only_pData': False, # Wether to only return clinical data
+      
         'clinical_covs' : ["AGE", "TISSUE", "GLEASON_SCORE", 'PRE_OPERATIVE_PSA'] # clinical variables to be used; Remove if no clini. Data is wanted
         }`
     - To use the preferred modelling config, adapt the `MODEL_CONFIG`:
