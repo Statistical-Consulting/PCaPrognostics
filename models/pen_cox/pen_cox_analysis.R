@@ -163,6 +163,12 @@ load_all_results <- function(results_path) {
   }) %>% bind_rows()
   combined_data[, 1] <- NULL
 
+  custom_order <- c("AutoEncoder", "pData_AutoEncoder", "Imputed", "pData_Imputed", "pData_Intersection", "Intersection", "pData")
+  combined_data$dataset <- factor(combined_data$dataset, levels = custom_order)
+  # Sort dataframe by Category
+  combined_data <- combined_data[order(combined_data$dataset), ]
+
+
   return(combined_data)
 }
 
@@ -170,6 +176,7 @@ load_all_results <- function(results_path) {
 #' @param results A data frame containing performance results of the different splits across models
 #' @return A data frame with mean and standard deviation of the C-Index across splits
 aggregate_results <- function(results) {
+    print(results)
     results_aggr <- results %>% group_by(model) %>% summarise(mean = mean(ci), sd = sd(ci))
     return(results_aggr)
 }
@@ -180,6 +187,13 @@ aggregate_results <- function(results) {
 #' @return A merged data frame.
 combine_results <- function(results_nstd, results_test){
     df <- merge(results_nstd, results_test)
+    custom_order <- c("AutoEncoder", "pData_AutoEncoder", "pData_Imputed", "Imputed", "pData_Intersection", "Intersection", "pData")
+    df$dataset <- factor(df$dataset, levels = custom_order)
+
+    # Sort dataframe by Category
+    df <- df[order(df$dataset), ]
+
+
     return(df)
 }
 
@@ -398,17 +412,9 @@ test_prop_hazards <- function(model_path, adjusted){
         )
 
         dataset <- paste(components, collapse = "_")
-        print(ph_test_refit)
-
         plot_name <- paste0(dataset, '.png')
-
-        # Open a PNG device
         png(plot_name, width = 800, height = 600)
-
-        # Generate the plot
         plot(ph_test_refit[1])
-
-        # Close the device to finalize the image file
         dev.off()
 
 
@@ -421,14 +427,14 @@ test_prop_hazards <- function(model_path, adjusted){
 
 # ------------------------------------------------------------------------------------------------------------------
 # --------------------- load and inspect performance
-results_path_nstd <- "models\\pen_cox\\results_final\\results"
+results_path_nstd <- "models\\pen_cox\\results\\results"
 combined_results_nstd <- load_all_results(results_path = results_path_nstd)
 split_results_path <- 'results_modelling_splits\\splits_coxph.csv'
 write.csv(combined_results_nstd, split_results_path)
 combined_results_aggr <- aggregate_results(combined_results_nstd)
 print(combined_results_aggr)
 
-test_perf <- test_perf_all_models("models\\pen_cox\\results_final\\model")
+test_perf <- test_perf_all_models("models\\pen_cox\\results\\model")
 print(test_perf)
 
 final_results <- combine_results(combined_results_aggr, test_perf)
@@ -436,11 +442,10 @@ print(final_results)
 final_results_path <- 'results_modelling_ovs\\ov_coxph.csv'
 write.csv(final_results, final_results_path)
 
-feat_imps <- feat_imp_all_models("models\\pen_cox\\results_final\\model")
+feat_imps <- feat_imp_all_models("models\\pen_cox\\results\\model")
 print(feat_imps)
 feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_pencox.csv'
 write.csv(feat_imps, feat_imp_path)
 
-
-#ps <- test_prop_hazards("models\\pen_cox\\results_final\\model", adjusted = TRUE)
+#ps <- test_prop_hazards("models\\pen_cox\\results\\model", adjusted = TRUE)
 #print(ps)

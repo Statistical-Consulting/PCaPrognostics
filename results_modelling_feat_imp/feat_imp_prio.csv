@@ -1,4 +1,4 @@
-"","feature","value","dataset","model"
+"","feature","value","dataset","model_class"
 "1","GLEASON_SCORE",0.16549900349093,"block_data","prioLasso"
 "2","ENSG00000088325",0.0511968055461239,"block_data","prioLasso"
 "3","ENSG00000101951",-0.0202938868267943,"block_data","prioLasso"

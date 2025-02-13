@@ -37,9 +37,9 @@ class ModellingProcess():
         self.cmplt_pipeline = None  # Final pipeline after training
         self.nrs = None  # Nested resampling results
         self.X = None  # Training data features
-        self.y = None  # Training data labels
-        self.groups = None  # Cohort labels for cross-validation
-        self.path = None  # Directory path for saving model and results
+        self.y = None  # Training data targets/endpoints (BCR, MONTH_TO_BCR)
+        self.groups = None  # Cohorts for cross-validation
+        self.path = None  # Path for saving model and results
         self.fname_cv = None  # File name for saving cross-validation results
         
             
@@ -71,12 +71,12 @@ class ModellingProcess():
     
     def prepare_test_cohort_data(self, data_config, root, cohorts):
         """
-        Loads independent test data for specific testing cohorts (group B).
+        Loads independent test data for testing cohorts (group B).
 
         Args:
-            data_config (dict): Configuration for data loading.
+            data_config (dict): Config for data loading.
             root (str): Root directory of the project.
-            cohorts (list): Cohorts of group B.
+            cohorts (list): Cohort names of group B.
 
         Returns:
             tuple: Two lists containing features and targets per cohort.
@@ -99,7 +99,7 @@ class ModellingProcess():
         Executes the complete modeling process, including pipeline creation, nested resampling, and final model fitting.
 
         Args:
-            pipeline_steps (list): List of (name, transformer) tuples for creating the pipeline --> objects need to adhere to scikit learn interface /API.
+            pipeline_steps (list): List of (name, transformer/estimator) for creating the pipeline --> objects need to adhere to scikit learn interface/API.
             config (dict): Configuration for the modeling process, including parameters for cross-validation,
                            hyperparameter tuning, and result saving.
 
@@ -159,11 +159,11 @@ class ModellingProcess():
     
     def fit_cmplt_model(self, param_grid, monitor = None): 
         """
-        Performs hyperparameter tuning and fits the final model on all of group A.
+        Performs hyperparameter tuning and fits the final model on all cohorts of group A.
 
         Args:
             param_grid (dict): Parameter grid for GridSearchCV.
-            monitor (optional): Additional monitor object for evaluation during training.
+            monitor (optional): Additional monitor object for early stopping during training.
 
         Returns:
             tuple: The best model and the complete resampling result.
@@ -182,7 +182,7 @@ class ModellingProcess():
     
     def save_results(self, path, fname, model = None, cv_results = None, pipe = None): 
         """
-        Save the model, cross-validation results, and pipeline to the specified directory.
+        Saves the model, cross-validation results, and pipeline to the specified dirs.
 
         Args:
             path (str): Directory path to save the results.
@@ -219,11 +219,10 @@ class ModellingProcess():
         Checks whether the necessary prerequisites for the modeling process are met (data is prepared + model exists in pipeline).
 
         Args:
-            pipeline_steps (list): List of (name, transformer) tuples representing the steps in the pipeline.
+            pipeline_steps (list): List of (name, transformer/estimator) representing the steps in the pipeline.
 
         Returns:
-            tuple: A boolean indicating if an error was found (True if an error exists), 
-                and a string message explaining the error.
+            tuple: A boolean if error exists.
         """
         err = False
         mes = ""
@@ -237,7 +236,7 @@ class ModellingProcess():
 
     def _get_config_vals(self, config): 
         """
-        Extracts configuration values from the provided modelling dictionary.
+        Extracts config values from the provided modelling dictionary.
 
         Args:
             config (dict): Configuration dictionary with keys such as 'params_cv', 'monitor', 
@@ -247,8 +246,8 @@ class ModellingProcess():
             tuple: Contains the following extracted values:
                 - param_grid (dict or None): Parameter grid for cross-validation.
                 - monitor (object or None): Optional monitor object for early stopping.
-                - do_nested_resampling (bool): Indicates whether nested resampling should be performed.
-                - refit_hp_tuning (bool): Indicates whether to refit the model with hyperparameter tuning.
+                - do_nested_resampling (bool): Nested resampling should be performed?
+                - refit_hp_tuning (bool): Refit the model with hyperparameter tuning?
         """
         if config.get("params_cv", None) is None: 
             logger.warning("No param grid for (nested) resampling detected - will fit model with default HPs and on complete data")

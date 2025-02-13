@@ -24,7 +24,7 @@ load_all_results <- function(results_path) {
         data$model <- gsub(".csv", "", basename(file))
         contains_pData <- grepl("pData", file, ignore.case = TRUE)
         if (contains_pData){
-            data$dataset <- "gene__pData_blocks"
+            data$dataset <- "gene_pData_blocks"
         } else {
             data$dataset <- "gene_blocks"
         }

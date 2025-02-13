@@ -15,7 +15,7 @@ def _get_survival_subset(y, indices):
         indices: Indices of the subset.
 
     Returns:
-        np.ndarray: A structured array containing the prognostic endpoint of survival data
+        np.ndarray: Array containing the prognostic endpoint (BCR, MONTH_TO_BCR)
     """
     subset = np.empty(len(indices), dtype=y.dtype)
     event_field = 'status' if 'status' in y.dtype.names else 'event'
