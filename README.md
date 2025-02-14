@@ -4,7 +4,8 @@ This repository contains files used during the consulting project for Fraunhofer
 
 ## Code Architecture
 
-<img width="802" alt="Codegrafik1" src="https://github.com/user-attachments/assets/4541a784-5e3d-4370-bb9f-61b909857a6e" />
+
+![CodeOverview](https://github.com/user-attachments/assets/0813f52c-54bd-4de6-b67f-35bfc43ea866)
 
 
 
