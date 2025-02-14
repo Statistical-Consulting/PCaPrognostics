@@ -34,7 +34,12 @@ class DataContainer:
         self.groups = None
     
         
-    def load_test_data(self, cohort = None): 
+    def load_test_data(self, cohort = None):
+        """
+        Load merged test data.
+        Optionally, filter data for a specific cohort.
+        Also extract test group labels and optionally merge clinical data.
+        """
         loader = DataLoader(self.project_root)
         # get merged test data
         X, pdata = loader.get_merged_test_data(gene_type=self.config['gene_type'],
@@ -43,26 +48,20 @@ class DataContainer:
         if cohort is not None: 
             X = X[X.index.str.startswith(cohort)]
             pdata = pdata[pdata.index.str.startswith(cohort)]
-        
-        #print(pdata.info)
-        #print(X.info)
-        
         y = loader.prepare_survival_data(pdata)
-                
-        #self.test_groups = np.array([idx.split('.')[0] for idx in pdata.index])
-        
+        # Extract test group labels from the index using regex splitting
         import re
         def extract_first_part_with_number(s):
             match = re.search(r'\d', s)  # Find first number
             if match:
                 return s[:match.start() + 1]  # Include the number in the first part
-            return s 
-        
-        #self.test_groups = X.index.apply(extract_first_part_with_number)
+            return s
+
+        # Extract test group labels
         test_groups = np.array([re.split(r'(\d)', idx, maxsplit=1)[:2] for idx in X.index])
         self.test_groups = np.array([''.join(part) if len(part) > 1 else part[0] for part in test_groups])
-        #self.test_groups_pData = np.array([idx.split('.')[0] for idx in pdata.index])
-        
+
+        # If clinical covariates are specified, process and merge them with gene data
         if self.config.get('clinical_covs', None) is not None:
             logger.info('Found clinical data specification')
             ### TODO: Remove ------------------------------------------
@@ -75,16 +74,11 @@ class DataContainer:
             cat_cols = clin_data.select_dtypes(exclude=['number']).columns
             num_cols = clin_data.select_dtypes(exclude=['object']).columns
             clin_data_cat = clin_data.loc[:, cat_cols]
-            #clin_data_cat = pd.DataFrame( index=pdata.index)
-            #clin_data_cat.set_index(pdata.index)
-
+            # If one-hot encoding is not required, set a default for TISSUE column
             if self.config.get('requires_ohenc', True) is False:
                 clin_data_cat.loc[ : , 'TISSUE'] = 'Fresh_frozen'
+            # If one-hot encoding is required, manually create dummy columns for TISSUE
             if self.config.get('requires_ohenc', True) is True:
-                # TODO: Versatile machen
-                #ohc = OneHotEncoder()
-                #clin_data_cat = ohc.fit_transform(clin_data_cat)
-                #clin_data_cat = pd.DataFrame.sparse.from_spmatrix(clin_data_cat, columns=ohc.get_feature_names_out()).set_index(X.index)
                 print(clin_data_cat.columns)
                 clin_data_cat.loc[: ,'TISSUE_FFPE'] = 0
                 clin_data_cat.loc[: ,'TISSUE_Fresh_frozen'] = 1
@@ -92,7 +86,7 @@ class DataContainer:
                 print(clin_data_cat.columns)
 
                 clin_data_cat.drop(['TISSUE'], axis = 1, inplace=True)
-                
+            # Get numerical clinical data
             clin_data_num = clin_data.loc[:, num_cols]
             
             if self.config.get('only_pData', False) is not False: 
@@ -106,7 +100,11 @@ class DataContainer:
         
 
     def load_data(self):
-        """Load and preprocess data"""
+        """
+        Load and preprocess training data.
+        Applies PCA if configured, selects random genes if required,
+        and merges clinical covariates if specified.
+        """
         try:
             if self.project_root is None:
                 raise ValueError("project_root must be provided")
@@ -115,6 +113,7 @@ class DataContainer:
 
             # Load data
             loader = DataLoader(self.project_root)
+            # Load merged data (X: gene expression features, pdata: patient metadata)
             X, pdata = loader.get_merged_data(
                 gene_type=self.config['gene_type'],
                 use_imputed=self.config['use_imputed']
@@ -137,7 +136,8 @@ class DataContainer:
             if self.config['select_random']: 
                logger.info("Selecting random subsets of genes...")
                X = X.sample(frac = self.config['random_frac'], axis = 1)
-                        
+
+            # Process clinical covariates if provided in config
             if self.config.get('clinical_covs', None) is not None:
                 logger.info('Found clinical data specification')
                 ### TODO: Remove ------------------------------------------
@@ -149,12 +149,13 @@ class DataContainer:
                 print(pdata.info())
                 num_cols = clin_data.select_dtypes(exclude=['object']).columns
                 clin_data_cat = clin_data.loc[:, cat_cols]
+                # Perform one-hot encoding if required
                 if self.config.get('requires_ohenc', True) is True:
                     ohc = OneHotEncoder()
                     clin_data_cat = ohc.fit_transform(clin_data_cat)
                     clin_data_cat = pd.DataFrame.sparse.from_spmatrix(clin_data_cat, columns=ohc.get_feature_names_out()).set_index(X.index)
                 clin_data_num = clin_data.loc[:, num_cols]
-                
+                # Merge clinical data with gene data depending on configuration
                 if self.config.get('only_pData', False) is not False: 
                     logger.info('Only uses pData')
                     X = pd.concat([clin_data_cat, clin_data_num], axis = 1)
@@ -168,7 +169,11 @@ class DataContainer:
             logger.error(f"Error loading data: {str(e)}")
             raise
         
-    def load_val_data(self): 
+    def load_val_data(self):
+        """
+        Load data for validation purposes.
+        Currently returns merged data and patient metadata.
+        """
         loader = DataLoader(self.project_root)
         # TODO: adapt for testing cohorts
         X, pdata = loader.get_merged_data(
@@ -191,7 +196,11 @@ class DataContainer:
         return self.test_groups
 
     def get_train_val_split(self, X, y):
-        """Create train/validation split"""
+        """
+        Create a train/validation split.
+        If 'use_cohorts' is enabled and group labels are available, perform a cohort-based split.
+        Otherwise, perform a random split based on the validation_split parameter.
+        """
         try:
             if self.config['use_cohorts'] and self.groups is not None:
                 # Cohort-based split
