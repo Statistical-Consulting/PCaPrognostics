@@ -363,6 +363,7 @@ test_prop_hazards <- function(model_path, adjusted){
     perf = setNames(data.frame(matrix(ncol = 2, nrow = length(files))), c("model", "global_p_refit"))
     for (i  in seq_along(files)) {
         file = files[[i]]
+        print(file)
         load(paste0(model_path, '\\', file))
         coefs <- as.matrix(coef(final_model, s = 'lambda.min'))
         non_zero_coefs <- coefs[coefs != 0, , drop = FALSE] 
@@ -417,7 +418,7 @@ test_prop_hazards <- function(model_path, adjusted){
         plot(ph_test_refit[1])
         dev.off()
 
-
+        print(ph_test_refit)
         perf[i, ] <- c(dataset, refit_p)
     }
     return(perf)
@@ -447,5 +448,5 @@ print(feat_imps)
 feat_imp_path <- 'results_modelling_feat_imp\\feat_imp_pencox.csv'
 write.csv(feat_imps, feat_imp_path)
 
-#ps <- test_prop_hazards("models\\pen_cox\\results\\model", adjusted = TRUE)
-#print(ps)
+ps <- test_prop_hazards("models\\pen_cox\\results\\model", adjusted = FALSE)
+print(ps)
