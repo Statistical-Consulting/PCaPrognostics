@@ -3,9 +3,7 @@
 This repository contains files used during the consulting project for Fraunhofer IZI, including data preprocessing, modeling, and visualization of results.
 
 ## Code Architecture
-
-
-![CodeOverview]![grafik](https://github.com/user-attachments/assets/8ab5ef9f-f09b-4c90-b8de-a2cd5c1442f8)
+![CodeOverview](https://github.com/user-attachments/assets/8ab5ef9f-f09b-4c90-b8de-a2cd5c1442f8)
 
 
 ## How to Work with This Code
