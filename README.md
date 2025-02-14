@@ -12,7 +12,7 @@ This repository contains files used during the consulting project for Fraunhofer
 
 ### 1. Data Placement
 Before running the code, place the required data files in the `data` folder:
-- `Revised_ProstaTrend.Rds` (ProstaTrend-ffpe scores)
+- `Revised_ProstaTrend.Rds` (ProstaTrend-ffpe Scores)
 - `PCa_cohorts.RDS` (training cohorts)
 - `PCa_cohorts_2.RDS` (test cohorts)
 
@@ -24,11 +24,11 @@ The preprocessing step runs before the rest of the code and generates the necess
 - **Additional preprocessing (if required):**  
   Run `preprocessing_2.R` to apply further preprocessing to test cohorts and ProstaTrend-FFPE scores.
 - **Dimensionality reduction:**
-  1. Run the `generate_autoencoder.ipynb` in Google Colab (link in 'pretrained_models_ae/generate_autoencoder.ipynb')
+  1. Run the `generate_autoencoder.ipynb` in Google Colab (link in '/pretrained_models_ae/generate_autoencoder.ipynb')
   2. Download the 'csv', 'csv_eval' and 'models'-folders from this notebook into the 'pretrained_models_ae'-folder of this repository
 
 ### 3. Running the Models
-There are two types of model implementations in this repository. Some models are implemented in R, some in Python. In additon, some Python Models only run locally, whereas others con (only) be executed in Google Colab. 
+There are two types of model implementations in this repository. Some models are implemented in R, some in Python. In additon, some Python Models only run locally, whereas others can (only) be executed in Google Colab. 
 
 #### Models implemented in Python:
 1. Nested resampling, model tuning and final model training in the `<model_name>_modelling.py`-files:
