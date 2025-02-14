@@ -731,7 +731,7 @@ p1 <- ggsurvplot(
 # Rename
 km_data_2 <- kaplan_meier_pData %>%
   filter(STUDY %in% c(aggregated_cohorts, "Ribolution_prad")) %>%
-  mutate(STUDY = recode(STUDY, !!!rename_map))  # Hier werden die Namen ersetzt
+  mutate(STUDY = recode(STUDY, !!!rename_map))  
 
 # Kaplan-Meier Survival Object 
 surv_obj_2 <- Surv(time = km_data_2$MONTH_TO_BCR, event = km_data_2$BCR_STATUS)
