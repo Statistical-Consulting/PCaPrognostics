@@ -545,7 +545,7 @@ fp7 <-ggplot(best_test_results_both_cohorts_exprs_only_train_with_avg, aes(y = M
 
 
 ```
-```{r comparing mean performance of exprs based models vs pData vs both}
+```{r comparing mean performance of exprs based models vs pData vs both (no plotting)}
 test_mean_all_models <- mean(c(ov_results_cBoost$ci_coh1, ov_results_cBoost$ci_coh2, 
                          ov_results_coxph$ci_coh1, ov_results_coxph$ci_coh2, 
                          ov_results_DeepSurv$ci_coh1, ov_results_DeepSurv$ci_coh2, 
