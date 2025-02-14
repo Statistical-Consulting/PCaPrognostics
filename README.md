@@ -5,8 +5,7 @@ This repository contains files used during the consulting project for Fraunhofer
 ## Code Architecture
 
 
-![CodeOverview](https://github.com/user-attachments/assets/0813f52c-54bd-4de6-b67f-35bfc43ea866)
-
+![CodeOverview]![grafik](https://github.com/user-attachments/assets/8ab5ef9f-f09b-4c90-b8de-a2cd5c1442f8)
 
 
 ## How to Work with This Code
