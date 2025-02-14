@@ -521,7 +521,7 @@ plot1 <- ggplot(
   ) +
   scale_color_manual(values = model_colors) +  
   labs(
-    title = "Performance of Models on Cohort 10 by Data Set",
+    title = "Performance of Models on Cohort 10 by Dataset",
     x = "Data Sets", y = "C-Index", color = "Model"
   ) +
   theme_minimal() +
